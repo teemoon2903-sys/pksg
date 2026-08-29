@@ -244,7 +244,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <div class="grid" style="margin-top:12px">
  <div><label>Species ID</label><input id="eSpecies" type="number" min="1" max="2047" readonly></div>
- <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
+ <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"><div class="small">เมื่อเปลี่ยน Level ระบบจะปรับ EXP ให้ตรงกับ Level ด้วย</div></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
  <div>
@@ -369,7 +369,13 @@ function readMonFrom(data,off,isParty=false){
 }
 
 function levelFromExp(exp){
- return Math.max(1,Math.min(100,Math.round(Math.cbrt(Math.max(0,exp)))))
+ // Medium-Slow growth is used by Fennekin and is the default for this editor.
+ // Use the exact Gen-III/IV lookup formula rather than a cube-root approximation.
+ let best=1;
+ for(let l=1;l<=100;l++){
+  if(exp>=expForLevel(l)) best=l; else break;
+ }
+ return best;
 }
 
 function getPartyData(){
@@ -472,11 +478,13 @@ function w16v(x,start,bits,val){
 
 function applyMon(){
  const e=current.edit;
+ const level=Math.max(1,Math.min(100,+document.getElementById("eLevel").value));
  const vals={
   species:+document.getElementById("eSpecies").value,
   item:+document.getElementById("eItem").value,
   nature:+document.getElementById("eNature").value,
   shiny:+document.getElementById("eShiny").value,
+  level,
   iv:[],ev:[],moves:[]
  };
  for(let i=0;i<6;i++){
@@ -487,14 +495,20 @@ function applyMon(){
 
  let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
  let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
+
+ // Gen-III-style Pokémon data stores EXP at +0x44 (24-bit).
+ // The game derives the Pokémon's level from EXP when the save is loaded,
+ // so changing only the party cache level is not enough. Write BOTH values.
+ const exp=expForLevel(level);
+ w32(out,36,(u32(out,36)&0xff000000)|(exp&0xffffff));
  sb.set(out,off);
 
  if(e.where==="party"){
-  // Party data: +0x4C is status; +0x54 is the actual displayed level.
-  // The previous version wrote the level into +0x4C, which corrupted Status instead.
-  sb[off+84]=Math.max(1,Math.min(100,+document.getElementById("eLevel").value));
+  // Party cache: +0x54 is the displayed/current level.
+  sb[off+84]=level;
   writeSB1(sb)
  }else{
+  // PC Pokémon has no party level cache; EXP determines its level.
   logical.set(sb,5*4080)
  }
  closeEditor();render();
