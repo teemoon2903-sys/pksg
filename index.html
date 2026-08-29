@@ -351,10 +351,10 @@ function buildLogical(slot){
  return out;
 }
 
-function boxMonAt(box,slot){return 0x04+(box*30+slot)*76}
+function boxMonAt(box,slot){return 0x04+(box*30+slot)*80}
 
 function readMonFrom(data,off,isParty=false){
- const raw=data.slice(off,off+76),pid=u32(raw,0),ot=u32(raw,4);
+ const raw=data.slice(off,off+80),pid=u32(raw,0),ot=u32(raw,4);
  const w0=u16(raw,32),w1=u16(raw,34),d=u32(raw,36);
  const species=w0&2047,tera=w0>>>11,item=w1&1023,exp=d&0xffffff;
  const moves=[];for(let k=0;k<4;k++)moves.push(u16(raw,44+k*2)&2047);
@@ -427,7 +427,7 @@ function applyGeneral(){
 
 function openEditor(where,index){
  let sb=where==="party"?saveblock1():logical.slice(5*4080,14*4080);
- let off=where==="party"?0x238+index*100:4+(current.box*30+index)*76;
+ let off=where==="party"?0x238+index*100:4+(current.box*30+index)*80;
  let m=readMonFrom(sb,off,where==="party");
  current.edit={where,index,off,m};
  document.getElementById("eSpecies").value=m.species;
@@ -449,6 +449,14 @@ function openEditor(where,index){
 
 function closeEditor(){document.getElementById("editor").classList.remove("show")}
 
+function pokemonChecksum(raw){
+ // Pokémon data record is 80 bytes. The checksum at +0x1C
+ // is the 16-bit sum of the 48-byte data area at +0x20..+0x4F.
+ let sum=0;
+ for(let o=32;o<80;o+=2)sum=(sum+u16(raw,o))&65535;
+ return sum;
+}
+
 function patchBox(raw,vals){
  const out=raw.slice(),species=+vals.species,item=+vals.item;
  let w=w16v(u16(out,32),0,11,species);
@@ -468,6 +476,7 @@ function patchBox(raw,vals){
   ivd=(ivd&~(31<<sh))|((Math.max(0,Math.min(31,+vals.iv[i])))<<sh)
  }
  w32(out,68,ivd);
+ w16(out,28,pokemonChecksum(out));
  return out;
 }
 
@@ -494,13 +503,14 @@ function applyMon(){
  for(let i=0;i<4;i++)vals.moves.push(+document.getElementById("mv"+i).value);
 
  let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
- let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
+ let off=e.off,raw=sb.slice(off,off+80),out=patchBox(raw,vals);
 
  // Gen-III-style Pokémon data stores EXP at +0x44 (24-bit).
  // The game derives the Pokémon's level from EXP when the save is loaded,
  // so changing only the party cache level is not enough. Write BOTH values.
  const exp=expForLevel(level);
  w32(out,36,(u32(out,36)&0xff000000)|(exp&0xffffff));
+ w16(out,28,pokemonChecksum(out));
  sb.set(out,off);
 
  if(e.where==="party"){
