@@ -78,6 +78,27 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
  border-radius:12px;background:#f3f3f3;
 }
 .selected-pokemon img{width:50px;height:50px;image-rendering:pixelated;object-fit:contain}
+
+/* Move / Item pickers */
+.lookup-box{margin-top:8px;padding:10px;border:1px solid #eee;border-radius:14px;background:#fafafa}
+.lookup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px;max-height:300px;overflow:auto}
+.lookup-card{border:2px solid transparent;border-radius:12px;padding:7px;text-align:center;background:#fff;cursor:pointer}
+.lookup-card:hover{box-shadow:0 3px 10px #0002}
+.lookup-card.selected{border-color:#111;background:#eee}
+.lookup-card img{width:52px;height:52px;object-fit:contain;image-rendering:pixelated}
+.lookup-card b{display:block;font-size:11px;line-height:1.2}
+.lookup-card small{display:block;color:#777}
+.selected-lookup{display:flex;align-items:center;gap:10px;margin-top:7px;padding:7px 9px;border-radius:10px;background:#f3f3f3}
+.selected-lookup img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
+.move-picker{margin-top:7px}
+.move-picker-row{display:flex;gap:8px;align-items:center}
+.move-picker-row input[type=text]{flex:1}
+.move-picker-row button{padding:9px 11px}
+.move-picker-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:7px;margin-top:7px;max-height:220px;overflow:auto}
+.move-card{border:2px solid transparent;border-radius:11px;padding:6px;text-align:center;background:#fafafa;cursor:pointer}
+.move-card.selected{border-color:#111;background:#eee}
+.move-card b{display:block;font-size:11px;line-height:1.15}
+.move-card small{color:#777}
 </style>
 </head>
 <body>
@@ -168,9 +189,23 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <section id="bag" class="panel" hidden>
 <div class="card"><h2>🎒 Bag / PC Items</h2>
-<p class="small">โครงสร้าง Bag ของ SoulGold มี ItemSlot 4 ไบต์ต่อช่อง; ใช้ Item ID ของ ROM โดยตรง</p>
-<div class="grid">
- <div><label>Item ID</label><input id="itemId" type="number" min="0" max="1023" value="50"></div>
+<p class="small">เลือกไอเทมด้วยชื่อและรูปได้เลย ส่วน Item ID จะถูกใส่อัตโนมัติ</p>
+
+<div class="lookup-box">
+ <label>🔍 ค้นหา Item</label>
+ <div class="pokemon-search-row">
+  <input id="itemSearch" type="text" placeholder="เช่น Potion, Rare Candy หรือเลข ID">
+  <button class="secondary" type="button" id="clearItemSearch">ล้าง</button>
+ </div>
+ <div id="selectedItem" class="selected-lookup" hidden>
+  <img id="selectedItemImg">
+  <div><b id="selectedItemName"></b><div class="small">Item ID: <span id="selectedItemId"></span></div></div>
+ </div>
+ <div id="itemPicker" class="lookup-grid"><div class="picker-status">⏳ กำลังโหลดรายการไอเทม...</div></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+ <div><label>Item ID</label><input id="itemId" type="number" min="0" max="1023" value="50" readonly></div>
  <div><label>จำนวน</label><input id="itemQty" type="number" min="0" max="999" value="999"></div>
  <div><label>Bag slot (0–185)</label><input id="itemSlot" type="number" min="0" max="185" value="0"></div>
 </div>
@@ -210,7 +245,16 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
  <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
- <div><label>Held Item ID</label><input id="eItem" type="number" min="0" max="1023"></div>
+ <div>
+ <label>🎒 Held Item</label>
+ <input id="eItem" type="number" min="0" max="1023" readonly>
+ <div class="selected-lookup" id="selectedHeldItem" hidden>
+  <img id="selectedHeldItemImg">
+  <div><b id="selectedHeldItemName"></b><div class="small">Item ID: <span id="selectedHeldItemId"></span></div></div>
+ </div>
+ <input id="heldItemSearch" type="text" placeholder="ค้นหาไอเทม..." style="margin-top:6px">
+ <div id="heldItemPicker" class="lookup-grid" style="max-height:180px"></div>
+</div>
  <div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
 </div>
 
@@ -234,13 +278,9 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <label>SpD<input id="ev5" type="number" min="0" max="252" value="0"></label>
 </div>
 
-<h3 style="margin-top:14px">⚔️ Moves (ID)</h3>
-<div class="grid">
-<input id="mv0" type="number" min="0" max="2047" value="0">
-<input id="mv1" type="number" min="0" max="2047" value="0">
-<input id="mv2" type="number" min="0" max="2047" value="0">
-<input id="mv3" type="number" min="0" max="2047" value="0">
-</div>
+<h3 style="margin-top:14px">⚔️ Moves</h3>
+<p class="small">เลือกชื่อท่าแทนการกรอก Move ID — ระบบจะเก็บ ID ไว้เบื้องหลัง</p>
+<div id="movePickers"></div>
 
 <div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
 </div>
@@ -863,5 +903,211 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
 /* Start Pokémon picker */
 loadPokemonList();
 </script>
+
+<script>
+/* =========================
+   Move + Item name pickers
+   ========================= */
+let moveList=[], itemListData=[];
+let moveLoaded=false, itemLoaded=false;
+
+function apiDisplayName(name){
+  return String(name||"").split("-").map(x=>x?x.charAt(0).toUpperCase()+x.slice(1):x).join(" ");
+}
+function moveSprite(id){
+  /* Moves do not have official PokeAPI item-like sprites; use a small icon instead. */
+  return "";
+}
+function itemSprite(id){
+  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+String(itemListData.find(x=>x.id===id)?.name||"")+" .png".replace(" ","");
+}
+
+function filterLookup(list, search){
+  search=(search||"").trim().toLowerCase();
+  return list.filter(x=>{
+    const n=apiDisplayName(x.name).toLowerCase();
+    return !search || n.includes(search) || x.name.toLowerCase().includes(search) || String(x.id)===search;
+  }).slice(0,120);
+}
+
+async function loadMoveList(){
+  const host=document.getElementById("movePickers");
+  if(!host)return;
+  try{
+    const res=await fetch("https://pokeapi.co/api/v2/move?limit=1000");
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    moveList=data.results.map((x,i)=>({id:i+1,name:x.name}));
+    moveLoaded=true;
+    renderAllMovePickers();
+  }catch(e){
+    moveList=[
+      {id:1,name:"Pound"},{id:14,name:"Swords Dance"},{id:15,name:"Cut"},
+      {id:33,name:"Tackle"},{id:34,name:"Body Slam"},{id:85,name:"Thunderbolt"},
+      {id:86,name:"Thunder Wave"},{id:89,name:"Earthquake"},{id:94,name:"Psychic"},
+      {id:95,name:"Hypnosis"},{id:104,name:"Double Team"},{id:126,name:"Fire Blast"},
+      {id:148,name:"Sludge Bomb"},{id:156,name:"Rest"},{id:173,name:"Leer"},
+      {id:213,name:"Attract"},{id:216,name:"Return"},{id:249,name:"Rock Smash"},
+      {id:258,name:"Hidden Power"},{id:264,name:"Focus Punch"}
+    ];
+    renderAllMovePickers();
+    if(host)host.insertAdjacentHTML("beforeend","<div class='picker-status'>⚠️ โหลดรายชื่อท่าเต็มไม่ได้ — แสดงรายการสำรอง</div>");
+  }
+}
+
+function makeMovePicker(index, initialId){
+  const wrap=document.createElement("div");
+  wrap.className="move-picker card";
+  wrap.style.margin="7px 0";
+  wrap.innerHTML=`
+    <label>ท่า ${index+1}</label>
+    <div class="move-picker-row">
+      <input type="text" id="mvSearch${index}" placeholder="ค้นหาชื่อท่า เช่น Thunderbolt">
+      <input type="hidden" id="mv${index}" value="${initialId||0}">
+      <span class="small" id="mvId${index}">ID ${initialId||0}</span>
+    </div>
+    <div id="mvList${index}" class="move-picker-list"></div>`;
+  return wrap;
+}
+
+function renderMovePicker(index){
+  const listHost=document.getElementById("mvList"+index);
+  if(!listHost)return;
+  const search=document.getElementById("mvSearch"+index)?.value||"";
+  const currentId=+(document.getElementById("mv"+index)?.value||0);
+  const list=filterLookup(moveList,search);
+  listHost.innerHTML="";
+  if(!list.length){listHost.innerHTML="<div class='picker-status'>ไม่พบชื่อท่า</div>";return}
+  list.forEach(m=>{
+    const d=document.createElement("div");
+    d.className="move-card"+(m.id===currentId?" selected":"");
+    d.innerHTML=`<b>${apiDisplayName(m.name)}</b><small>ID ${m.id}</small>`;
+    d.onclick=()=>{
+      document.getElementById("mv"+index).value=m.id;
+      document.getElementById("mvSearch"+index).value=apiDisplayName(m.name);
+      document.getElementById("mvId"+index).textContent="ID "+m.id;
+      renderMovePicker(index);
+    };
+    listHost.appendChild(d);
+  });
+}
+
+function renderAllMovePickers(){
+  const host=document.getElementById("movePickers");
+  if(!host)return;
+  const old=[];
+  for(let i=0;i<4;i++)old.push(+(document.getElementById("mv"+i)?.value||0));
+  host.innerHTML="";
+  for(let i=0;i<4;i++){
+    host.appendChild(makeMovePicker(i,old[i]));
+  }
+  for(let i=0;i<4;i++){
+    document.getElementById("mvSearch"+i).addEventListener("input",()=>renderMovePicker(i));
+    const id=old[i];
+    const found=moveList.find(x=>x.id===id);
+    if(found)document.getElementById("mvSearch"+i).value=apiDisplayName(found.name);
+    renderMovePicker(i);
+  }
+}
+
+async function loadItemList(){
+  try{
+    const res=await fetch("https://pokeapi.co/api/v2/item?limit=2500");
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    itemListData=data.results.map((x,i)=>({id:i+1,name:x.name}));
+    itemLoaded=true;
+    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  }catch(e){
+    itemListData=[
+      {id:1,name:"master-ball"},{id:13,name:"potion"},{id:14,name:"antidote"},
+      {id:15,name:"burn-heal"},{id:17,name:"ice-heal"},{id:20,name:"full-heal"},
+      {id:25,name:"rare-candy"},{id:37,name:"elixir"},{id:50,name:"poke-ball"},
+      {id:68,name:"great-ball"},{id:70,name:"ultra-ball"},{id:84,name:"full-restore"},
+      {id:85,name:"max-potion"},{id:87,name:"hyper-potion"},{id:93,name:"revive"}
+    ];
+    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  }
+}
+
+function renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld){
+  const host=document.getElementById(pickerId);
+  if(!host)return;
+  const search=document.getElementById(searchId)?.value||"";
+  const currentId=+(document.getElementById(valueId)?.value||0);
+  const list=filterLookup(itemListData,search);
+  host.innerHTML="";
+  if(!list.length){host.innerHTML="<div class='picker-status'>ไม่พบ Item</div>";return}
+  list.forEach(it=>{
+    const d=document.createElement("div");
+    d.className="lookup-card"+(it.id===currentId?" selected":"");
+    d.innerHTML=`<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${it.name}.png" loading="lazy" onerror="this.style.opacity='.25'"><b>${apiDisplayName(it.name)}</b><small>#${it.id}</small>`;
+    d.onclick=()=>{
+      document.getElementById(valueId).value=it.id;
+      const s=document.getElementById(selectedId);
+      if(s){
+        s.hidden=false;
+        const img=s.querySelector("img");
+        const nm=s.querySelector("b");
+        const sid=s.querySelector("span");
+        if(img)img.src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+it.name+".png";
+        if(nm)nm.textContent=apiDisplayName(it.name);
+        if(sid)sid.textContent=it.id;
+      }
+      renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld);
+    };
+    host.appendChild(d);
+  });
+}
+
+function setupLookupEvents(){
+  const a=document.getElementById("itemSearch");
+  const ac=document.getElementById("clearItemSearch");
+  const h=document.getElementById("heldItemSearch");
+  if(a)a.addEventListener("input",()=>renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false));
+  if(ac)ac.addEventListener("click",()=>{
+    a.value="";renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+  });
+  if(h)h.addEventListener("input",()=>renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true));
+}
+setupLookupEvents();
+renderAllMovePickers();
+loadMoveList();
+loadItemList();
+
+/* When opening a Pokémon editor, refresh the move/item displays from saved IDs. */
+const oldOpenEditor=window.openEditor;
+window.openEditor=function(where,index){
+  oldOpenEditor(where,index);
+  setTimeout(()=>{
+    if(moveLoaded)renderAllMovePickers();
+    if(itemLoaded)renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  },50);
+};
+
+/* Make applyMon read hidden move IDs exactly like the original editor. */
+const oldApplyMon=window.applyMon;
+window.applyMon=function(){
+  const valsMove=[];
+  for(let i=0;i<4;i++) valsMove.push(+(document.getElementById("mv"+i)?.value||0));
+
+  /* Temporarily expose the selected IDs through the original input shape. */
+  const host=document.getElementById("movePickers");
+  const originalHost=host?.innerHTML;
+  if(host){
+    const backup=[];
+    for(let i=0;i<4;i++){
+      const h=document.getElementById("mv"+i);
+      backup.push(h?.value||0);
+    }
+    /* Original applyMon in this build reads #mv0..#mv3.
+       Our hidden inputs already have those IDs, so no adaptation is needed. */
+  }
+  oldApplyMon();
+};
+</script>
+
 </body>
 </html>
