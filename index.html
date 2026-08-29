@@ -110,7 +110,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <div class="card">
 <h2>📂 Save</h2>
-<input id="file" type="file" accept=".srm,.sav">
+<input id="file" type="file" accept=".srm,.sav,.dat">
 <button class="primary" type="button" id="openSaveBtn" style="margin-top:10px">📂 เปิด/อ่านเซฟ</button>
 <div id="fileInfo" class="small" style="margin-top:8px">ยังไม่ได้เปิดเซฟ</div>
 <div class="tabs">
@@ -218,7 +218,9 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="card"><h2>🛠 Tools</h2>
 <button class="primary" onclick="exportSave()">💾 Export .srm</button>
 <button class="secondary" onclick="exportBackup()">🛡 Backup original</button>
-<p class="small">PKSG จะรักษา sector ID และคำนวณ sector checksum ใหม่ให้กับ save slot ที่แก้ไข</p>
+<button class="secondary" onclick="validateSave()">🔎 ตรวจสอบเซฟ</button>
+<p class="small">ก่อน Export PKSG จะสร้างไฟล์จากข้อมูลใน Save Slot ที่เลือก และคำนวณ checksum ของ sector ที่เขียนกลับ</p>
+<div id="saveDiagnostics" class="status" style="margin-top:10px">ยังไม่ได้ตรวจสอบเซฟ</div>
 </div>
 <div class="card danger"><strong>สำคัญ</strong>
 <p>Species/Item IDs ต้องตรงกับ ROM รุ่นที่เปิดเซฟนี้อยู่ เว็บอ่านโครงสร้าง SoulGold expansion: Party offset 0x238, Money 0x490, PC items 0x498 และ PC 16 กล่อง/30 ช่อง; BoxPokemon ขนาด 76 ไบต์</p>
@@ -608,13 +610,37 @@ function dl(data,n){
 }
 
 function exportSave(){
- if(!bytes)return;
- dl(rebuildSave(),filename.replace(/\.(sav|srm)$/i,"")+"_PKSG.srm");
- document.getElementById("status").textContent="Export สำเร็จ • sector checksum ถูกคำนวณใหม่"
+ if(!bytes||!logical||!current){document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";return}
+ try{
+  const check=validateSave(true);
+  if(!check.ok)throw new Error(check.message);
+  const out=rebuildSave();
+  dl(out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
+  document.getElementById("status").textContent="✅ Export สำเร็จ • ตรวจสอบ sector/checksum แล้ว";
+ }catch(e){document.getElementById("status").textContent="❌ Export ถูกยกเลิก: "+e.message}
 }
-
 function exportBackup(){
- if(original)dl(original,filename.replace(/\.(sav|srm)$/i,"")+"_BACKUP.srm")
+ if(original)dl(original,filename.replace(/\.(sav|srm|dat)$/i,"")+"_BACKUP."+((filename.match(/\.(sav|srm|dat)$/i)||[".srm"])[0].slice(1)))
+}
+function validateSave(silent=false){
+ const diag=document.getElementById("saveDiagnostics");
+ if(!bytes||!current||!logical){if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";return {ok:false,message:"ยังไม่ได้เปิดเซฟ"}}
+ const problems=[],warnings=[],ids=new Set();let validCount=0;
+ for(let physical=0;physical<bytes.length/4096;physical++){
+  const po=physical*4096,id=u16(bytes,po+4084),stored=u16(bytes,po+4086),sig=u32(bytes,po+4088);
+  if(sig===0x08012025&&id<14){
+   validCount++;ids.add(id);
+   const data=bytes.slice(po,po+4080),calc=checksum(data);
+   if(calc!==stored)problems.push("Sector "+id+" checksum ไม่ตรง");
+  }
+ }
+ if(bytes.length!==131072)problems.push("ขนาดไฟล์ไม่ใช่ 128 KiB");
+ if(ids.size<14)problems.push("ไม่พบ sector ID ครบ 0–13");
+ const msg=(problems.length?"❌ "+problems.join("\n"):"✅ Save Slot ผ่านการตรวจสอบพื้นฐาน")+
+  "\nพบ sector ที่ใช้ได้ "+validCount+" รายการ • Counter "+current.counter;
+ if(diag)diag.textContent=msg;
+ if(!silent)document.getElementById("status").textContent=msg;
+ return {ok:problems.length===0,message:problems.join("; ")};
 }
 
 /* =========================
