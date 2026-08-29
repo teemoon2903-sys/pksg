@@ -244,7 +244,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <div class="grid" style="margin-top:12px">
  <div><label>Species ID</label><input id="eSpecies" type="number" min="1" max="2047" readonly></div>
- <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
+ <div><label>Level (แก้ EXP ให้ตรงกับ Level)</label><input id="eLevel" type="number" min="1" max="100"></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
  <div>
@@ -472,12 +472,14 @@ function w16v(x,start,bits,val){
 
 function applyMon(){
  const e=current.edit;
+ const level=Math.max(1,Math.min(100,+document.getElementById("eLevel").value||1));
  const vals={
   species:+document.getElementById("eSpecies").value,
   item:+document.getElementById("eItem").value,
   nature:+document.getElementById("eNature").value,
   shiny:+document.getElementById("eShiny").value,
-  iv:[],ev:[],moves:[]
+  iv:[],ev:[],moves:[],
+  level
  };
  for(let i=0;i<6;i++){
   vals.iv.push(+document.getElementById("iv"+i).value);
@@ -487,10 +489,16 @@ function applyMon(){
 
  let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
  let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
+
+ /* IMPORTANT: Pokémon level is derived from EXP by the game.
+    Writing only the party level byte is not enough; the game will
+    recalculate it from EXP and revert to the old level. */
+ w32(out,36,expForLevel(level));
  sb.set(out,off);
 
  if(e.where==="party"){
-  sb[off+76]=+document.getElementById("eLevel").value;
+  /* Cached party level byte. Keep it synchronized with EXP. */
+  sb[off+76]=level;
   writeSB1(sb)
  }else{
   logical.set(sb,5*4080)
@@ -557,6 +565,9 @@ function createPCMon(){
   `สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
 }
 
+/* Medium Slow growth curve (used by Fennekin/#653 in the ROM).
+   EXP is what the game uses to determine the real level; the party
+   level byte is only a cached value. */
 function expForLevel(l){
  let n=Math.max(1,Math.min(100,l));
  return Math.max(0,Math.floor(6*n*n*n/5-15*n*n+100*n-140))
