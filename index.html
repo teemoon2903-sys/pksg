@@ -605,7 +605,7 @@ function setItem(){
 
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
- const SECTOR_DATA_SIZE=3968; // 0xF80: footer begins at 0xF80
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
 
  for(let physical=0;physical<14;physical++){
   const po=(slot.base+physical)*4096;
@@ -614,10 +614,11 @@ function rebuildSave(){
 
   // logical still uses the app's existing 4080-byte stride.
   // Only the real 3968-byte sector data is written/checksummed.
-  const data=logical.slice(id*4080,id*4080+SECTOR_DATA_SIZE);
+  const size=SECTION_SIZES[id]??3968;
+  const data=logical.slice(id*4080,id*4080+size);
   out.set(data,po);
 
-  // Preserve the unused footer area (0xF80-0xFF3).
+  // Preserve the unused footer area (0xF80-0xFF3). Only rewrite the 12-byte footer fields.
   w16(out,po+4084,id);
   w16(out,po+4086,checksum(data));
   w32(out,po+4088,0x08012025);
@@ -671,7 +672,7 @@ function validateSave(silent=false){
  const problems=[],ids=new Set();
  let validCount=0,checksumOK=0;
  const base=current.base;
- const SECTOR_DATA_SIZE=3968; // official GBA save sector data length
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
 
  for(let physical=0;physical<14;physical++){
   const po=(base+physical)*4096;
@@ -692,8 +693,9 @@ function validateSave(silent=false){
   validCount++;
   ids.add(id);
 
-  // IMPORTANT: checksum is over sector DATA, not the 128-byte footer.
-  const data=bytes.slice(po,po+SECTOR_DATA_SIZE);
+  // IMPORTANT: checksum length depends on Section ID; it is not always 3968 bytes.
+  const size=SECTION_SIZES[id]??3968;
+  const data=bytes.slice(po,po+size);
   const calc=checksum(data);
 
   if(calc===stored){
