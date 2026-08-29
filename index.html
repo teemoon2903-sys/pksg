@@ -590,9 +590,10 @@ function setItem(){
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
  for(let physical=0;physical<14;physical++){
-  let po=(slot.base+physical)*4096,id=u16(out,po+4084);
-  if(id>=14)continue;
-  let data=logical.slice(id*4080,(id+1)*4080);
+  const po=(slot.base+physical)*4096;
+  const id=u16(bytes,po+4084);
+  if(id<0 || id>=14)continue;
+  const data=logical.slice(id*4080,(id+1)*4080);
   out.set(data,po);
   w16(out,po+4084,id);
   w16(out,po+4086,checksum(data));
@@ -610,37 +611,87 @@ function dl(data,n){
 }
 
 function exportSave(){
- if(!bytes||!logical||!current){document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";return}
+ if(!bytes||!logical||!current){
+  document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";
+  return;
+ }
  try{
   const check=validateSave(true);
   if(!check.ok)throw new Error(check.message);
   const out=rebuildSave();
   dl(out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
-  document.getElementById("status").textContent="✅ Export สำเร็จ • ตรวจสอบ sector/checksum แล้ว";
- }catch(e){document.getElementById("status").textContent="❌ Export ถูกยกเลิก: "+e.message}
+  document.getElementById("status").textContent=
+   "✅ Export สำเร็จ • Save Slot "+(activeSlot+1)+
+   " • Counter "+current.counter+
+   " • ตรวจสอบ sector/checksum แล้ว";
+ }catch(e){
+  document.getElementById("status").textContent=
+   "❌ Export ถูกยกเลิก: "+e.message;
+ }
 }
+
 function exportBackup(){
  if(original)dl(original,filename.replace(/\.(sav|srm|dat)$/i,"")+"_BACKUP."+((filename.match(/\.(sav|srm|dat)$/i)||[".srm"])[0].slice(1)))
 }
+
 function validateSave(silent=false){
  const diag=document.getElementById("saveDiagnostics");
- if(!bytes||!current||!logical){if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";return {ok:false,message:"ยังไม่ได้เปิดเซฟ"}}
- const problems=[],warnings=[],ids=new Set();let validCount=0;
- for(let physical=0;physical<bytes.length/4096;physical++){
-  const po=physical*4096,id=u16(bytes,po+4084),stored=u16(bytes,po+4086),sig=u32(bytes,po+4088);
-  if(sig===0x08012025&&id<14){
-   validCount++;ids.add(id);
-   const data=bytes.slice(po,po+4080),calc=checksum(data);
-   if(calc!==stored)problems.push("Sector "+id+" checksum ไม่ตรง");
-  }
+ if(!bytes||!current||!logical){
+  if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";
+  return {ok:false,message:"ยังไม่ได้เปิดเซฟ"};
  }
- if(bytes.length!==131072)problems.push("ขนาดไฟล์ไม่ใช่ 128 KiB");
- if(ids.size<14)problems.push("ไม่พบ sector ID ครบ 0–13");
- const msg=(problems.length?"❌ "+problems.join("\n"):"✅ Save Slot ผ่านการตรวจสอบพื้นฐาน")+
-  "\nพบ sector ที่ใช้ได้ "+validCount+" รายการ • Counter "+current.counter;
+
+ const problems=[],ids=new Set();
+ let validCount=0,checksumOK=0;
+ const base=current.base;
+
+ // ตรวจเฉพาะ 14 sectors ของ Save Slot ที่ parseSlots() เลือกไว้
+ for(let physical=0;physical<14;physical++){
+  const po=(base+physical)*4096;
+  const id=u16(bytes,po+4084);
+  const stored=u16(bytes,po+4086);
+  const sig=u32(bytes,po+4088);
+
+  if(sig!==0x08012025){
+   problems.push("Sector physical "+physical+": signature ไม่ถูกต้อง");
+   continue;
+  }
+  if(id<0 || id>=14){
+   problems.push("Sector physical "+physical+": Sector ID ไม่ถูกต้อง ("+id+")");
+   continue;
+  }
+
+  validCount++;
+  ids.add(id);
+
+  const data=bytes.slice(po,po+4080);
+  const calc=checksum(data);
+  if(calc===stored)checksumOK++;
+  else problems.push("Sector "+id+" checksum ไม่ตรง (ไฟล์ "+stored+" / คำนวณ "+calc+")");
+ }
+
+ if(ids.size!==14){
+  const missing=[];
+  for(let i=0;i<14;i++)if(!ids.has(i))missing.push(i);
+  problems.push("Sector ID ไม่ครบ 0–13 (ขาด: "+missing.join(", ")+")");
+ }
+ if(bytes.length!==131072)problems.push("ขนาดไฟล์ไม่ถูกต้อง ("+bytes.length+" bytes)");
+
+ const ok=problems.length===0;
+ const msg=ok
+  ? "✅ Save Slot "+(activeSlot+1)+" ผ่านการตรวจสอบ"+
+    "\nSector ครบ "+validCount+"/14"+
+    "\nChecksum ผ่าน "+checksumOK+"/14"+
+    "\nCounter "+current.counter
+  : "❌ พบปัญหาใน Save Slot "+(activeSlot+1)+
+    "\n"+problems.join("\n")+
+    "\n\nSector ที่อ่านได้ "+validCount+"/14"+
+    "\nChecksum ผ่าน "+checksumOK+"/14"+
+    "\nCounter "+current.counter;
+
  if(diag)diag.textContent=msg;
  if(!silent)document.getElementById("status").textContent=msg;
- return {ok:problems.length===0,message:problems.join("; ")};
+ return {ok,message:problems.join("; ")};
 }
 
 /* =========================
