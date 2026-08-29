@@ -364,7 +364,11 @@ function readMonFrom(data,off,isParty=false){
  const headerNature=(raw[18]>>>3)&31;
  const nature=(pid%25)^headerNature;
  const shiny=(raw[30]&64)?1:0;
- let level=isParty?data[off+84]:Math.max(1,levelFromExp(exp));
+ // IMPORTANT: derive the displayed level from EXP, not the party cache.
+ // The party cache at +0x54 can be stale/corrupted after an edit; EXP is the
+ // authoritative value for determining the level. The cache is repaired when
+ // the Pokémon is written back.
+ let level=Math.max(1,Math.min(100,levelFromExp(exp)));
  return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
 }
 
@@ -514,7 +518,8 @@ function applyMon(){
  sb.set(out,off);
 
  if(e.where==="party"){
-  // Party cache: +0x54 is the displayed/current level.
+  // Party cache: +0x54 is the displayed/current level. Repair it from the
+  // EXP-derived level so stale cache bytes cannot make the game show a wrong level.
   sb[off+84]=level;
   writeSB1(sb)
  }else{
