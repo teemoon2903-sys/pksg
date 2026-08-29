@@ -605,7 +605,7 @@ function setItem(){
 
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
 
  for(let physical=0;physical<14;physical++){
   const po=(slot.base+physical)*4096;
@@ -672,7 +672,7 @@ function validateSave(silent=false){
  const problems=[],ids=new Set();
  let validCount=0,checksumOK=0;
  const base=current.base;
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
 
  for(let physical=0;physical<14;physical++){
   const po=(base+physical)*4096;
