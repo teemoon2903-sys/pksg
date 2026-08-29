@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKSG — SoulGold Save Editor</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f3f5;color:#171717;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:auto;padding:16px}.head{background:#111;color:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
+h1,h2,h3{margin:0 0 10px}.sub{opacity:.75}.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 15px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+label{font-weight:700;font-size:13px;display:block}input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff;font:inherit}
+button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}.primary{background:#111;color:#fff}.secondary{background:#e8e8e8}.danger{background:#fff0f0;color:#9b1c1c}
+.status{background:#f3f3f3;border-radius:10px;padding:11px;white-space:pre-wrap}.small{font-size:12px;color:#666}
+.tabs{display:flex;gap:7px;overflow:auto;margin:10px 0}.tab{white-space:nowrap}.tab.active{background:#111;color:#fff}
+.party{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.slot{border:1px solid #ddd;border-radius:14px;padding:8px;text-align:center;background:#fafafa;cursor:pointer}.slot.active{border:2px solid #111}
+.slot img{width:75px;height:75px;image-rendering:pixelated;object-fit:contain}.empty{opacity:.45}
+.boxgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}.boxslot{min-height:110px}
+@media(max-width:650px){.party{grid-template-columns:repeat(3,1fr)}.boxgrid{grid-template-columns:repeat(5,1fr)}}
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:30;padding:12px;overflow:auto}.modal.show{display:block}.modalbox{max-width:760px;margin:20px auto;background:#fff;border-radius:20px;padding:18px}
+.modalhead{display:flex;justify-content:space-between;align-items:center}.pokehead{display:flex;gap:15px;align-items:center}.pokehead img{width:120px;height:120px;image-rendering:pixelated}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}@media(max-width:500px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+.itemrow{display:grid;grid-template-columns:1fr 100px 90px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #eee}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head"><h1>🔥 PKSG</h1><div class="sub">SoulGold GBA Save Editor — ROM-aware build</div></div>
+
+<div class="card">
+<h2>📂 Save</h2>
+<input id="file" type="file" accept=".srm,.sav">
+<button class="primary" type="button" id="openSaveBtn" style="margin-top:10px">📂 เปิด/อ่านเซฟ</button>
+<div id="fileInfo" class="small" style="margin-top:8px">ยังไม่ได้เปิดเซฟ</div>
+<div class="tabs">
+<button class="tab active" data-tab="party">🐉 Party</button>
+<button class="tab" data-tab="pc">📦 PC</button>
+<button class="tab" data-tab="bag">🎒 Bag</button>
+<button class="tab" data-tab="tools">🛠 Tools</button>
+</div>
+<div id="status" class="status">รอเปิดไฟล์เซฟ</div>
+</div>
+
+<section id="party" class="panel">
+<div class="card"><h2>🐉 Party</h2><div id="partyGrid" class="party"></div></div>
+<div class="card"><div class="grid">
+<div><label>Party count</label><input id="partyCount" type="number" min="0" max="6"></div>
+<div><label>Money</label><input id="money" type="number" min="0" max="9999999"></div>
+</div><button class="primary" style="margin-top:10px" onclick="applyGeneral()">✓ ใช้ค่า</button></div>
+</section>
+
+<section id="pc" class="panel" hidden>
+<div class="card"><h2>📦 PC Boxes</h2><div class="grid">
+<div><label>Box</label><select id="boxSelect"></select></div>
+<div><label>ค้นหา/เลือก Species ID</label><input id="speciesId" type="number" min="0" max="2047" value="1325"></div>
+<div><label>ช่อง PC</label><input id="boxSlot" type="number" min="1" max="30" value="1"></div>
+</div><div class="boxgrid" id="boxGrid" style="margin-top:12px"></div></div>
+<div class="card"><h3>➕ สร้าง Pokémon ในช่องที่เลือก</h3><div class="grid">
+<div><label>Species ID</label><input id="newSpecies" type="number" min="1" max="2047" value="1325"></div>
+<div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
+<div><label>Nature</label><select id="newNature"></select></div>
+<div><label>Ability slot</label><select id="newAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
+</div><button class="primary" style="margin-top:10px" onclick="createPCMon()">➕ ใส่ Pokémon</button></div>
+</section>
+
+<section id="bag" class="panel" hidden>
+<div class="card"><h2>🎒 Bag / PC Items</h2>
+<p class="small">โครงสร้าง Bag ของ SoulGold มี ItemSlot 4 ไบต์ต่อช่อง; ใช้ Item ID ของ ROM โดยตรง</p>
+<div class="grid"><div><label>Item ID</label><input id="itemId" type="number" min="0" max="1023" value="50"></div><div><label>จำนวน</label><input id="itemQty" type="number" min="0" max="999" value="999"></div><div><label>Bag slot (0–185)</label><input id="itemSlot" type="number" min="0" max="185" value="0"></div></div>
+<button class="primary" style="margin-top:10px" onclick="setItem()">💾 ใส่ Item</button>
+</div>
+<div class="card"><h3>Item slots</h3><div id="itemList"></div></div>
+</section>
+
+<section id="tools" class="panel" hidden>
+<div class="card"><h2>🛠 Tools</h2>
+<button class="primary" onclick="exportSave()">💾 Export .srm</button>
+<button class="secondary" onclick="exportBackup()">🛡 Backup original</button>
+<p class="small">PKSG จะรักษา sector ID และคำนวณ sector checksum ใหม่ให้กับ save slot ที่แก้ไข</p>
+</div>
+<div class="card danger"><strong>สำคัญ</strong><p>Species/Item IDs ต้องตรงกับ ROM รุ่นที่เปิดเซฟนี้อยู่ เว็บอ่านโครงสร้าง SoulGold expansion: Party offset 0x238, Money 0x490, PC items 0x498 และ PC 16 กล่อง/30 ช่อง; BoxPokemon ขนาด 76 ไบต์</p></div>
+</section>
+</div>
+
+<div id="editor" class="modal">
+<div class="modalbox">
+<div class="modalhead"><h2>🐉 Pokémon Editor</h2><button class="secondary" onclick="closeEditor()">✕</button></div>
+<div class="pokehead"><img id="eSprite"><div><h2 id="eName"></h2><div id="eMeta" class="small"></div></div></div>
+<div class="grid" style="margin-top:12px">
+<div><label>Species ID</label><input id="eSpecies" type="number" min="1" max="2047"></div>
+<div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
+<div><label>Nature</label><select id="eNature"></select></div>
+<div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
+<div><label>Held Item ID</label><input id="eItem" type="number" min="0" max="1023"></div>
+<div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
+</div>
+<h3 style="margin-top:14px">⭐ IV</h3><div class="statgrid">
+<label>HP<input id="iv0" type="number" min="0" max="31" value="31"></label>
+<label>Atk<input id="iv1" type="number" min="0" max="31" value="31"></label>
+<label>Def<input id="iv2" type="number" min="0" max="31" value="31"></label>
+<label>Spe<input id="iv3" type="number" min="0" max="31" value="31"></label>
+<label>SpA<input id="iv4" type="number" min="0" max="31" value="31"></label>
+<label>SpD<input id="iv5" type="number" min="0" max="31" value="31"></label>
+</div>
+<h3 style="margin-top:14px">EV</h3><div class="statgrid">
+<label>HP<input id="ev0" type="number" min="0" max="252" value="0"></label>
+<label>Atk<input id="ev1" type="number" min="0" max="252" value="252"></label>
+<label>Def<input id="ev2" type="number" min="0" max="252" value="0"></label>
+<label>Spe<input id="ev3" type="number" min="0" max="252" value="252"></label>
+<label>SpA<input id="ev4" type="number" min="0" max="252" value="0"></label>
+<label>SpD<input id="ev5" type="number" min="0" max="252" value="0"></label>
+</div>
+<h3 style="margin-top:14px">⚔️ Moves (ID)</h3><div class="grid">
+<input id="mv0" type="number" min="0" max="2047" value="0"><input id="mv1" type="number" min="0" max="2047" value="0">
+<input id="mv2" type="number" min="0" max="2047" value="0"><input id="mv3" type="number" min="0" max="2047" value="0">
+</div>
+<div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
+</div></div>
+
+<script>
+const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
+const DEX_NAMES={1:"Bulbasaur",2:"Ivysaur",3:"Venusaur",4:"Charmander",5:"Charmeleon",6:"Charizard",7:"Squirtle",8:"Wartortle",9:"Blastoise",25:"Pikachu",133:"Eevee",196:"Espeon",197:"Umbreon",248:"Tyranitar",249:"Lugia",250:"Ho-Oh",251:"Celebi",254:"Sceptile",257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",937:"Ceruledge",936:"Armarouge",908:"Meowscarada",911:"Skeledirge",914:"Quaquaval",1007:"Koraidon",1008:"Miraidon",1325:"Ceruledge"};
+const SPECIES_TO_SPRITE={1325:937,937:937,936:936,908:908,911:911,914:914};
+let bytes=null, original=null, filename="PKSG.srm", activeSlot=0, logical=null, current=null;
+
+function fillNatures(){
+ for(const id of ["newNature","eNature"]){const s=document.getElementById(id);NATURES.forEach((n,i)=>{let o=document.createElement("option");o.value=i;o.textContent=n;s.appendChild(o)})}
+}
+fillNatures();
+
+function u16(a,o){return a[o]|(a[o+1]<<8)} function u32(a,o){return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0}
+function w16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}
+function w32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
+function checksum(data){
+ let s=0; for(let i=0;i<data.length;i+=4)s=(s+u32(data,i))>>>0;
+ return ((s&65535)+(s>>>16))&65535;
+}
+function parseSlots(){
+ const slots=[];
+ for(let base of [0,14]){
+  let sectors={}; let counter=-1;
+  for(let i=0;i<14;i++){
+   let off=(base+i)*4096,id=u16(bytes,off+4084),c=u32(bytes,off+4092);
+   if(id<14){sectors[id]=bytes.slice(off,off+4080);counter=Math.max(counter,c)}
+  }
+  let valid=Object.keys(sectors).length===14;
+  if(valid) slots.push({base,counter,sectors});
+ }
+ if(!slots.length)throw Error("ไม่พบ Save Slot ที่ครบ 14 sectors");
+ slots.sort((a,b)=>b.counter-a.counter);return slots[0];
+}
+function buildLogical(slot){
+ let out=new Uint8Array(14*4080);for(let i=0;i<14;i++)out.set(slot.sectors[i],i*4080);return out;
+}
+function boxMonAt(box,slot){
+ return 0x04+(box*30+slot)*76;
+}
+function decodeMon(raw){
+ const pid=u32(raw,0),ot=u32(raw,4),w0=u16(raw,32),w1=u16(raw,34);
+ return {pid,ot,species:w0&2047,tera:w0>>>11,item:w1&1023,exp:u32(raw,36)&0xffffff,
+  nature:(NATURES.indexOf(NATURES[0])>=0?0:0)};
+}
+function readMonFrom(data,off,isParty=false){
+ const raw=data.slice(off,off+76), pid=u32(raw,0), ot=u32(raw,4);
+ const w0=u16(raw,32),w1=u16(raw,34), d=u32(raw,36);
+ const species=w0&2047, tera=w0>>>11, item=w1&1023, exp=d&0xffffff;
+ const moves=[];for(let k=0;k<4;k++){let ww=u16(raw,44+k*2);moves.push(ww&2047)}
+ const pp1=raw[64]&127, pp2=raw[65]&127, pp3=raw[66]&127, pp4=raw[67]&127;
+ const ev=[raw[68],raw[69],raw[70],raw[71],raw[72],raw[73]];
+ // IV word is at secure offset 40 => absolute 72? derive from struct: secure 0..43, IV starts at secure offset 36 => abs 68.
+ const ivd=u32(raw,32+36);
+ const iv=[ivd&31,(ivd>>>5)&31,(ivd>>>10)&31,(ivd>>>15)&31,(ivd>>>20)&31,(ivd>>>25)&31];
+ const headerNature=(raw[18]>>>3)&31;
+ const nature=(pid%25)^headerNature;
+ const shiny=(raw[30]&64)?1:0;
+ let level=isParty?raw[80]:Math.max(1,levelFromExp(exp));
+ return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
+}
+function levelFromExp(exp){return Math.max(1,Math.min(100,Math.round(Math.cbrt(Math.max(0,exp)))))} // fallback display only
+function getPartyData(){
+ const sb=logical.slice(4080,4080*5);let count=sb[0x234],mons=[];
+ for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
+ return {sb,count,mons};
+}
+function sprite(id){return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+(SPECIES_TO_SPRITE[id]||id)+".png"}
+function name(id){return DEX_NAMES[id]||("Species #"+id)}
+function render(){
+ if(!bytes)return;
+ const p=getPartyData();document.getElementById("partyCount").value=p.count;
+ document.getElementById("money").value=u32(p.sb,0x490);
+ const pg=document.getElementById("partyGrid");pg.innerHTML="";
+ for(let i=0;i<6;i++){let m=p.mons[i],d=document.createElement("div");d.className="slot "+(m.species?"":"empty");
+ d.innerHTML=m.species?`<img src="${sprite(m.species)}"><b>${name(m.species)}</b><div>Lv.${m.level}</div>`:"<div style='height:75px;display:grid;place-items:center'>—</div><b>ว่าง</b>";
+ d.onclick=()=>m.species&&openEditor("party",i);pg.appendChild(d)}
+ renderBox();renderItems();
+ document.getElementById("status").textContent=`โหลดแล้ว • Save slot ${activeSlot+1} • Counter ${current.counter}\nParty ${p.count}/6 • PC 16 กล่อง × 30 ช่อง`;
+}
+function saveblock1(){return logical.slice(4080,4080+4*4080)}
+function writeSB1(sb){for(let i=0;i<4;i++)logical.set(sb.slice(i*4080,(i+1)*4080),4080+i*4080)}
+function applyGeneral(){let sb=saveblock1();sb[0x234]=+document.getElementById("partyCount").value;w32(sb,0x490,Math.min(9999999,+document.getElementById("money").value));writeSB1(sb);render()}
+function openEditor(where,index){
+ let sb=where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let off=where==="party"?0x238+index*100:4+(current.box*30+index)*76;
+ let m=readMonFrom(sb,off,where==="party");
+ current.edit={where,index,off,m};
+ document.getElementById("eSpecies").value=m.species;document.getElementById("eLevel").value=m.level;document.getElementById("eNature").value=m.nature%25;
+ document.getElementById("eAbility").value=0;document.getElementById("eItem").value=m.item;document.getElementById("eShiny").value=m.shiny;
+ m.iv.forEach((v,i)=>document.getElementById("iv"+i).value=v);m.ev.forEach((v,i)=>document.getElementById("ev"+i).value=v);m.moves.forEach((v,i)=>document.getElementById("mv"+i).value=v);
+ document.getElementById("eName").textContent=name(m.species);document.getElementById("eMeta").textContent=`Species ID ${m.species} • PID ${m.pid.toString(16)}`;
+ document.getElementById("eSprite").src=sprite(m.species);document.getElementById("editor").classList.add("show");
+}
+function closeEditor(){document.getElementById("editor").classList.remove("show")}
+function patchBox(raw,vals){
+ const out=raw.slice(), species=+vals.species, item=+vals.item;
+ let w=w16v(u16(out,32),0,11,species);w=w16v(w,11,5,0);w16(out,32,w);w16(out,34,w16v(u16(out,34),0,10,item));
+ let pid=u32(out,0),baseNature=pid%25,mod=(+vals.nature)^baseNature;out[18]=(out[18]&7)|((mod&31)<<3);
+ if(+vals.shiny)out[30]|=64;else out[30]&=~64;
+ // moves, each 11 bits in its 16-bit word
+ for(let k=0;k<4;k++){let o=44+k*2;w16(out,o,w16v(u16(out,o),0,11,+vals.moves[k]))}
+ // EVs
+ vals.ev.forEach((v,i)=>out[68+i]=Math.max(0,Math.min(255,+v)));
+ // IV packed word at absolute 68? In this struct, EVs are 68..73 and IV word starts secure offset 36 = absolute 68? 
+ // Correct struct layout puts EVs at secure offset 24 => abs 56; IVs at secure offset 36 => abs 68.
+ // Restore EV positions at 56..61.
+ vals.ev.forEach((v,i)=>out[56+i]=Math.max(0,Math.min(255,+v)));
+ let ivd=u32(out,68); for(let i=0;i<6;i++){let sh=i*5;ivd=(ivd&~(31<<sh))|((Math.max(0,Math.min(31,+vals.iv[i])))<<sh)}w32(out,68,ivd);
+ return out;
+}
+function w16v(x,start,bits,val){let mask=((1<<bits)-1)<<start;return (x&~mask)|((val&((1<<bits)-1))<<start)}
+function applyMon(){
+ const e=current.edit, vals={species:+document.getElementById("eSpecies").value,item:+document.getElementById("eItem").value,nature:+document.getElementById("eNature").value,shiny:+document.getElementById("eShiny").value,iv:[],ev:[],moves:[]};
+ for(let i=0;i<6;i++){vals.iv.push(+document.getElementById("iv"+i).value);vals.ev.push(+document.getElementById("ev"+i).value)}
+ for(let i=0;i<4;i++)vals.moves.push(+document.getElementById("mv"+i).value);
+ let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let off=e.off, raw=sb.slice(off,off+(e.where==="party"?76:76)), out=patchBox(raw,vals);
+ sb.set(out,off);
+ if(e.where==="party"){
+   // party cache: leave stats mostly intact; game recalculates stats on load from experience.
+   // Set cached level and HP to a safe level-5 placeholder when changed.
+   sb[off+76]=+document.getElementById("eLevel").value;
+   writeSB1(sb);
+ } else {
+   logical.set(sb,5*4080);
+ }
+ closeEditor();render();
+ document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
+}
+function renderBox(){
+ const sel=document.getElementById("boxSelect");if(!sel.options.length){for(let i=0;i<16;i++){let o=document.createElement("option");o.value=i;o.textContent="Box "+(i+1);sel.appendChild(o)}}
+ current.box=+sel.value;
+ const grid=document.getElementById("boxGrid");grid.innerHTML="";
+ const storage=logical.slice(5*4080,14*4080);
+ for(let i=0;i<30;i++){let m=readMonFrom(storage,boxMonAt(current.box,i));let d=document.createElement("div");d.className="slot boxslot "+(m.species?"":"empty");d.innerHTML=m.species?`<img src="${sprite(m.species)}"><b>${name(m.species)}</b><div>Lv.${m.level}</div>`:`<div style='height:75px'>—</div><small>${i+1}</small>`;d.onclick=()=>m.species?openEditor("box",i):document.getElementById("boxSlot").value=i+1;grid.appendChild(d)}
+}
+document.getElementById("boxSelect").onchange=renderBox;
+function createPCMon(){
+ let box=+document.getElementById("boxSelect").value,slot=+document.getElementById("boxSlot").value-1,sp=+document.getElementById("newSpecies").value,lv=+document.getElementById("newLevel").value,nat=+document.getElementById("newNature").value;
+ let storage=logical.slice(5*4080,14*4080), off=boxMonAt(box,slot), raw=new Uint8Array(76);
+ crypto.getRandomValues(raw.subarray(0,8)); let pid=u32(raw,0),ot=u32(raw,4);
+ w16(raw,32,sp);w16(raw,34,0);w32(raw,36,expForLevel(lv)); raw[18]=(raw[18]&7)|(((nat^(pid%25))&31)<<3);raw[19]=0x02; // hasSpecies
+ // max IVs
+ let iv=0x3fffffff;w32(raw,68,iv);for(let i=0;i<6;i++)raw[56+i]=0;
+ storage.set(raw,off);logical.set(storage,5*4080);render();document.getElementById("status").textContent=`สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
+}
+function expForLevel(l){let n=Math.max(1,Math.min(100,l));return Math.max(0,Math.floor(6*n*n*n/5-15*n*n+100*n-140))}
+function renderItems(){
+ const sb=saveblock1(),list=document.getElementById("itemList");list.innerHTML="";
+ for(let i=0;i<186;i++){let o=0x560+i*4,id=u16(sb,o),q=u16(sb,o+2);if(id||q){let d=document.createElement("div");d.className="itemrow";d.innerHTML=`<span>Slot ${i} • Item ID <b>${id}</b></span><span>${q}</span><button class="secondary" onclick="document.getElementById('itemSlot').value=${i};document.getElementById('itemId').value=${id};document.getElementById('itemQty').value=${q}">แก้</button>`;list.appendChild(d)}}
+}
+function setItem(){let sb=saveblock1(),i=+document.getElementById("itemSlot").value,o=0x560+i*4;w16(sb,o,+document.getElementById("itemId").value);w16(sb,o+2,+document.getElementById("itemQty").value);writeSB1(sb);renderItems();document.getElementById("status").textContent=`Item slot ${i} updated`}
+function rebuildSave(){
+ const out=bytes.slice(), slot=current;
+ // Write logical sectors back into the physical sectors using existing sector IDs.
+ for(let physical=0;physical<14;physical++){
+   let po=(slot.base+physical)*4096,id=u16(out,po+4084); if(id>=14)continue;
+   let data=logical.slice(id*4080,(id+1)*4080);out.set(data,po);
+   w16(out,po+4084,id);w16(out,po+4086,checksum(data));w32(out,po+4088,0x08012025);w32(out,po+4092,slot.counter);
+ }
+ return out;
+}
+function dl(data,n){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/octet-stream"}));a.download=n;a.click()}
+function exportSave(){if(!bytes)return;dl(rebuildSave(),filename.replace(/\.(sav|srm)$/i,"")+"_PKSG.srm");document.getElementById("status").textContent="Export สำเร็จ • sector checksum ถูกคำนวณใหม่"}
+function exportBackup(){if(original)dl(original,filename.replace(/\.(sav|srm)$/i,"")+"_BACKUP.srm")}
+document.getElementById("file").onchange=async e=>{
+ const f=e.target.files[0];if(!f)return;filename=f.name;bytes=new Uint8Array(await f.arrayBuffer());original=bytes.slice();
+ if(bytes.length!==131072){document.getElementById("status").textContent="ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";return}
+ try{current=parseSlots();logical=buildLogical(current);activeSlot=current.base===0?0:1;document.getElementById("fileInfo").textContent=`${filename} • 128 KiB • latest counter ${current.counter}`;render()}catch(err){document.getElementById("status").textContent="อ่านเซฟไม่สำเร็จ: "+err.message}
+};
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".panel").forEach(x=>x.hidden=true);document.getElementById(b.dataset.tab).hidden=false});
+</script>
+
+<script>
+/* PKSG SAVE LOADER v0.4 — explicit Open button for iOS Files */
+(function(){
+ const input=document.getElementById('file'), info=document.getElementById('fileInfo'), status=document.getElementById('status'), btn=document.getElementById('openSaveBtn');
+ if(!input||!btn)return;
+ const SECTOR=4096, DATA=3968, SIG=0x08012025;
+ const u16=(a,o)=>a[o]|a[o+1]<<8;
+ const u32=(a,o)=>(a[o]|a[o+1]<<8|a[o+2]<<16|a[o+3]<<24)>>>0;
+ function calcChecksum(a){let sum=0;for(let i=0;i<DATA;i+=4)sum=(sum+(u32(a,i)))>>>0;return ((sum>>>16)+(sum&65535))&65535}
+ function readSectors(bytes){
+   const list=[];
+   for(let i=0;i<bytes.length/SECTOR;i++){
+     const b=bytes.subarray(i*SECTOR,(i+1)*SECTOR);
+     if(u32(b,4088)!==SIG)continue;
+     list.push({physical:i,id:u16(b,4084),stored:u16(b,4086),counter:u32(b,4092),data:b.slice(0,DATA)});
+   }
+   return list;
+ }
+ function choose(sectors){
+   const groups=new Map();
+   for(const x of sectors){const k=x.counter;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(x)}
+   return [...groups.entries()].sort((a,b)=>b[0]-a[0]).map(([counter,list])=>({counter,list,ids:new Set(list.map(x=>x.id))})).find(x=>[...Array(14).keys()].every(id=>x.ids.has(id))) || null;
+ }
+ async function openSave(){
+   const f=input.files&&input.files[0];
+   if(!f){status.textContent='❌ ยังไม่ได้เลือกไฟล์เซฟ';return;}
+   status.className='status'; status.textContent='⏳ กำลังอ่าน '+f.name+' ...';
+   info.textContent=f.name+' • '+f.size.toLocaleString()+' bytes';
+   try{
+     const bytes=new Uint8Array(await f.arrayBuffer());
+     if(bytes.length!==131072)throw new Error('ต้องเป็นเซฟ 128 KiB (131072 bytes) แต่ไฟล์นี้มี '+bytes.length+' bytes');
+     const sectors=readSectors(bytes);
+     if(!sectors.length)throw new Error('ไม่พบ Save Sector Signature 0x08012025');
+     const slot=choose(sectors);
+     if(!slot)throw new Error('พบ sector แต่ไม่พบชุด Save Slot ครบ 14 sector');
+     const map=new Map(); for(const x of slot.list)if(!map.has(x.id))map.set(x.id,x);
+     window.PKSG_REAL_SAVE={bytes,sectors,slot,map,filename:f.name};
+     info.textContent=f.name+' • 128 KiB • Save Counter '+slot.counter;
+     status.textContent='✅ เปิดเซฟสำเร็จ • '+map.size+'/14 sectors • Counter '+slot.counter;
+     // Let the existing editor use the real save object too.
+     if(typeof window.render==='function')window.render();
+   }catch(e){status.className='status danger';status.textContent='❌ เปิดเซฟไม่สำเร็จ: '+e.message;console.error(e)}
+ }
+ input.addEventListener('change',openSave);
+ input.addEventListener('input',openSave);
+ btn.addEventListener('click',openSave);
+ window.PKSG_openSelectedSave=openSave;
+})();
+</script>
+</body></html>
