@@ -589,12 +589,19 @@ function setItem(){
 
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
+ const SECTOR_DATA_SIZE=3968; // 0xF80: footer begins at 0xF80
+
  for(let physical=0;physical<14;physical++){
   const po=(slot.base+physical)*4096;
   const id=u16(bytes,po+4084);
   if(id<0 || id>=14)continue;
-  const data=logical.slice(id*4080,(id+1)*4080);
+
+  // logical still uses the app's existing 4080-byte stride.
+  // Only the real 3968-byte sector data is written/checksummed.
+  const data=logical.slice(id*4080,id*4080+SECTOR_DATA_SIZE);
   out.set(data,po);
+
+  // Preserve the unused footer area (0xF80-0xFF3).
   w16(out,po+4084,id);
   w16(out,po+4086,checksum(data));
   w32(out,po+4088,0x08012025);
@@ -615,11 +622,14 @@ function exportSave(){
   document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";
   return;
  }
+
  try{
   const check=validateSave(true);
   if(!check.ok)throw new Error(check.message);
+
   const out=rebuildSave();
   dl(out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
+
   document.getElementById("status").textContent=
    "✅ Export สำเร็จ • Save Slot "+(activeSlot+1)+
    " • Counter "+current.counter+
@@ -636,6 +646,7 @@ function exportBackup(){
 
 function validateSave(silent=false){
  const diag=document.getElementById("saveDiagnostics");
+
  if(!bytes||!current||!logical){
   if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";
   return {ok:false,message:"ยังไม่ได้เปิดเซฟ"};
@@ -644,8 +655,8 @@ function validateSave(silent=false){
  const problems=[],ids=new Set();
  let validCount=0,checksumOK=0;
  const base=current.base;
+ const SECTOR_DATA_SIZE=3968; // official GBA save sector data length
 
- // ตรวจเฉพาะ 14 sectors ของ Save Slot ที่ parseSlots() เลือกไว้
  for(let physical=0;physical<14;physical++){
   const po=(base+physical)*4096;
   const id=u16(bytes,po+4084);
@@ -656,6 +667,7 @@ function validateSave(silent=false){
    problems.push("Sector physical "+physical+": signature ไม่ถูกต้อง");
    continue;
   }
+
   if(id<0 || id>=14){
    problems.push("Sector physical "+physical+": Sector ID ไม่ถูกต้อง ("+id+")");
    continue;
@@ -664,10 +676,17 @@ function validateSave(silent=false){
   validCount++;
   ids.add(id);
 
-  const data=bytes.slice(po,po+4080);
+  // IMPORTANT: checksum is over sector DATA, not the 128-byte footer.
+  const data=bytes.slice(po,po+SECTOR_DATA_SIZE);
   const calc=checksum(data);
-  if(calc===stored)checksumOK++;
-  else problems.push("Sector "+id+" checksum ไม่ตรง (ไฟล์ "+stored+" / คำนวณ "+calc+")");
+
+  if(calc===stored){
+   checksumOK++;
+  }else{
+   problems.push(
+    "Sector "+id+" checksum ไม่ตรง (ไฟล์ "+stored+" / คำนวณ "+calc+")"
+   );
+  }
  }
 
  if(ids.size!==14){
@@ -675,9 +694,13 @@ function validateSave(silent=false){
   for(let i=0;i<14;i++)if(!ids.has(i))missing.push(i);
   problems.push("Sector ID ไม่ครบ 0–13 (ขาด: "+missing.join(", ")+")");
  }
- if(bytes.length!==131072)problems.push("ขนาดไฟล์ไม่ถูกต้อง ("+bytes.length+" bytes)");
+
+ if(bytes.length!==131072){
+  problems.push("ขนาดไฟล์ไม่ถูกต้อง ("+bytes.length+" bytes)");
+ }
 
  const ok=problems.length===0;
+
  const msg=ok
   ? "✅ Save Slot "+(activeSlot+1)+" ผ่านการตรวจสอบ"+
     "\nSector ครบ "+validCount+"/14"+
@@ -691,12 +714,13 @@ function validateSave(silent=false){
 
  if(diag)diag.textContent=msg;
  if(!silent)document.getElementById("status").textContent=msg;
+
  return {ok,message:problems.join("; ")};
 }
 
 /* =========================
    Pokémon picker
-   ========================= */
+   */
 
 function pokemonDisplayName(n){
  return n.split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ")
