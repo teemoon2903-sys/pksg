@@ -364,11 +364,15 @@ function readMonFrom(data,off,isParty=false){
  const headerNature=(raw[18]>>>3)&31;
  const nature=(pid%25)^headerNature;
  const shiny=(raw[30]&64)?1:0;
- // IMPORTANT: derive the displayed level from EXP, not the party cache.
- // The party cache at +0x54 can be stale/corrupted after an edit; EXP is the
- // authoritative value for determining the level. The cache is repaired when
- // the Pokémon is written back.
- let level=Math.max(1,Math.min(100,levelFromExp(exp)));
+ // EXP is normally authoritative, but keep a valid Party Cache level as a
+ // recovery fallback when an older/broken edit has left EXP at 0 (or below
+ // the first level threshold). This prevents an otherwise valid Lv.6+ party
+ // Pokémon from suddenly being displayed as Lv.1. A corrupt cache such as
+ // 109 is ignored because it is outside the valid Pokémon level range.
+ const cacheLevel=isParty ? data[off+84] : 0;
+ const expLevel=Math.max(1,Math.min(100,levelFromExp(exp)));
+ let level=expLevel;
+ if(isParty && cacheLevel>=2 && cacheLevel<=100 && expLevel===1) level=cacheLevel;
  return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
 }
 
