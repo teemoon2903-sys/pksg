@@ -295,6 +295,27 @@ const COMMON_MOVES = {
   409: "Drain Punch", 421: "Shadow Claw", 442: "Iron Head", 447: "Grass Knot"
 };
 
+// Expand the move picker without changing save structure. The ROM stores move IDs,
+// so the picker can use the standard move ID/name table. The embedded table above
+// remains the offline fallback if the network is unavailable.
+let MOVES_LOADED=false;
+async function loadMoveDatabase(){
+ if(MOVES_LOADED)return;
+ try{
+  const res=await fetch("https://pokeapi.co/api/v2/move?limit=1000");
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  const data=await res.json();
+  for(const m of data.results){
+   const match=m.url.match(/\/(\d+)\/?$/);
+   const id=match?Number(match[1]):0;
+   if(id>0 && m.name)COMMON_MOVES[id]=m.name.replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  }
+  MOVES_LOADED=true;
+ }catch(e){
+  // Keep the embedded move table; save editing remains functional offline.
+ }
+}
+
 const POKEMON_API_MAX=1025;
 let bytes=null,original=null,filename="PKSG.srm",activeSlot=0,logical=null,current=null,dirty=false;
 let pokemonList=[];
@@ -403,9 +424,28 @@ function getPartyData(){
  return {sb,count,mons};
 }
 
+// Sprite lookup: ROM Internal IDs for Forms are NOT National Dex IDs.
+// Resolve a Form/Special slot back to its base Pokémon before requesting the sprite.
+let ROM_SPRITE_DEX_BY_NAME = null;
+function buildRomSpriteDexMap(){
+ if(ROM_SPRITE_DEX_BY_NAME)return ROM_SPRITE_DEX_BY_NAME;
+ ROM_SPRITE_DEX_BY_NAME={};
+ for(const r of ROM_POKEMON_ID_MAP){
+  if(r.form === "Base / standard / special slot" && !ROM_SPRITE_DEX_BY_NAME[r.name]){
+   ROM_SPRITE_DEX_BY_NAME[r.name]=r.id;
+  }
+ }
+ for(const [id,m] of Object.entries(SPECIAL_SPECIES_MAPPING)){
+  if(m && m.name && m.dexId) ROM_SPRITE_DEX_BY_NAME[m.name]=m.dexId;
+ }
+ return ROM_SPRITE_DEX_BY_NAME;
+}
 function sprite(id){
  const mapped = SPECIAL_SPECIES_MAPPING[id];
- const spriteId = mapped ? mapped.dexId : id;
+ if(mapped && mapped.dexId) return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+mapped.dexId+".png";
+ const rec = ROM_POKEMON_ID_MAP.find(r=>r.id===+id);
+ const baseDex = rec ? buildRomSpriteDexMap()[rec.name] : null;
+ const spriteId = baseDex || id;
  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+spriteId+".png";
 }
 
@@ -471,7 +511,8 @@ function openEditor(where,index){
  document.getElementById("editor").classList.add("show");
 }
 
-function renderMovePickers(currentMoves){
+async function renderMovePickers(currentMoves){
+ await loadMoveDatabase();
  const container = document.getElementById("movePickersContainer");
  container.innerHTML = "";
  for(let i=0; i<4; i++){
