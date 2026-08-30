@@ -1,118 +1,9 @@
-<!doctype html>
-<html lang="th">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PKSG Beta — SoulGold Save Editor</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#f2f3f5;color:#171717;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.wrap{max-width:1100px;margin:auto;padding:16px}
-.head{background:#111;color:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
-h1,h2{margin:0 0 10px}.sub{opacity:.75}
-.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 15px #0001}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-label{font-weight:700;font-size:13px;display:block}
-input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff;font:inherit}
-button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}
-.primary{background:#111;color:#fff}.secondary{background:#e8e8e8}
-.status{background:#eef7ee;color:#1e4620;border:1px solid #b7e1cd;border-radius:10px;padding:11px;white-space:pre-wrap;margin-top:10px}
-.small{font-size:12px;color:#666}
-.tabs{display:flex;gap:7px;overflow:auto;margin:10px 0}
-.tab{white-space:nowrap;padding:8px 16px;border-radius:8px;background:#e8e8e8;cursor:pointer}.tab.active{background:#111;color:#fff}
-.panel{display:block}
-
-.pokemon-picker-wrap{margin-top:12px}
-.pokemon-search-row{display:flex;gap:8px}
-.pokemon-search-row input{flex:1}
-.pokemon-picker{
- display:grid;
- grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
- gap:8px;
- margin-top:10px;
- max-height:350px;
- overflow:auto;
- padding:8px;
- border:1px solid #eee;
- border-radius:14px;
- background:#fafafa;
-}
-.pokemon-card{
- border:2px solid transparent;
- border-radius:12px;
- padding:8px 5px;
- text-align:center;
- background:#fff;
- cursor:pointer;
- transition:.12s;
-}
-.pokemon-card:hover{transform:translateY(-2px);box-shadow:0 3px 10px #0002}
-.pokemon-card.selected{border-color:#111;background:#eee}
-.pokemon-card b{display:block;font-size:12px;line-height:1.2}
-.pokemon-card small{display:block;color:#777;margin-top:2px}
-.selected-pokemon{
- display:flex;align-items:center;gap:10px;
- margin-top:10px;padding:10px;
- border-radius:12px;background:#f3f3f3;
-}
-</style>
-</head>
-<body>
-<div class="wrap">
-<div class="head">
- <h1>🔥 PKSG</h1>
- <div class="sub">SoulGold GBA Save Editor — Custom ROM Map Integrated</div>
-</div>
-
-<div class="card">
-<h2>📂 Save</h2>
-<input id="file" type="file" accept=".srm,.sav,.dat">
-<button class="primary" type="button" id="openSaveBtn" style="margin-top:10px">📂 เปิด/อ่านเซฟ</button>
-<div id="fileInfo" class="small" style="margin-top:8px">ยังไม่ได้เปิดเซฟ</div>
-
-<div class="tabs">
- <button class="tab active" data-tab="party">🐉 Party</button>
- <button class="tab" data-tab="pc">📦 PC</button>
-</div>
-<div id="status" class="status">รอเปิดไฟล์เซฟ</div>
-</div>
-
-<section id="pc" class="panel">
-<div class="card">
-<h2>📦 PC Boxes (ROM Map Selection)</h2>
-
-<div class="pokemon-picker-wrap">
- <label>🔍 ค้นหา Pokémon (ID 1 – 1577)</label>
- <div class="pokemon-search-row">
-  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ หรือ ID เช่น 6, 907, 1400, 1431">
-  <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
- </div>
-
- <div id="selectedPokemon" class="selected-pokemon" hidden>
-  <div class="small">เลือกอยู่: <b id="selectedPokemonName"></b> (ID: <span id="selectedPokemonId"></span>) - <span id="selectedPokemonForm"></span></div>
- </div>
-
- <div id="pokemonPicker" class="pokemon-picker"></div>
-</div>
-
-<div class="grid" style="margin-top:12px">
- <div>
-  <label>Species ID (1-1577)</label>
-  <input id="speciesId" type="number" min="1" max="1577" value="1" readonly>
- </div>
- <div>
-  <label>Species ID (สร้างตัวใหม่)</label>
-  <input id="newSpecies" type="number" min="1" max="1577" value="1" readonly>
- </div>
-</div>
-</div>
-</section>
-</div>
-
-<script>
-let saveBuffer = null;
-
-const POKEMON_MAP = [
+// ==========================================
+// 1. PKSG MASTER ROM MAP DATABASE (ID 1 - 1577)
+// ==========================================
+// ข้อมูลถูกแมปตาม ID จากไฟล์ Master ROM Map เพื่อให้ตรงกับโครงสร้าง ROM ของเกม[span_0](start_span)[span_0](end_span)
+const POKEMON_DATABASE = [
+  // Gen 1 - Gen 9 Base Forms (ตัวอย่าง ID หลัก)[span_1](start_span)[span_1](end_span)
   { id: 1, name: "Bulbasaur", form: "Base" },
   { id: 2, name: "Ivysaur", form: "Base" },
   { id: 3, name: "Venusaur", form: "Base" },
@@ -123,90 +14,145 @@ const POKEMON_MAP = [
   { id: 8, name: "Wartortle", form: "Base" },
   { id: 9, name: "Blastoise", form: "Base" },
   { id: 25, name: "Pikachu", form: "Base" },
+  { id: 133, name: "Eevee", form: "Base" },
   { id: 150, name: "Mewtwo", form: "Base" },
-  { id: 323, name: "Camerupt", form: "Base" },
+  { id: 151, name: "Mew", form: "Base" },
+  { id: 252, name: "Treecko", form: "Base" },
+  { id: 255, name: "Torchic", form: "Base" },
+  { id: 258, name: "Mudkip", form: "Base" },
+  { id: 384, name: "Rayquaza", form: "Base" },
+  { id: 483, name: "Dialga", form: "Base" },
+  { id: 484, name: "Palkia", form: "Base" },
+  { id: 487, name: "Giratina", form: "Base" },
+  { id: 493, name: "Arceus", form: "Base" },
+  { id: 658, name: "Greninja", form: "Base" },
+
+  // Mega Evolutions Slot (ID 906+)[span_2](start_span)[span_2](end_span)
   { id: 906, name: "Venusaur", form: "Mega" },
   { id: 907, name: "Charizard", form: "Mega X" },
   { id: 908, name: "Charizard", form: "Mega Y" },
   { id: 909, name: "Blastoise", form: "Mega" },
+  { id: 919, name: "Mewtwo", form: "Mega X" },
+  { id: 920, name: "Mewtwo", form: "Mega Y" },
   { id: 937, name: "Camerupt", form: "Mega" },
+  { id: 942, name: "Salamence", form: "Mega" },
+  { id: 943, name: "Metagross", form: "Mega" },
+  { id: 953, name: "Rayquaza", form: "Mega" },
+
+  // Regional Forms Slot (ID 956+)[span_3](start_span)[span_3](end_span)
   { id: 956, name: "Rattata", form: "Alolan" },
+  { id: 958, name: "Raichu", form: "Alolan" },
   { id: 974, name: "Meowth", form: "Galarian" },
+  { id: 982, name: "Articuno", form: "Galarian" },
   { id: 993, name: "Growlithe", form: "Hisuian" },
+  { id: 1003, name: "Zoroark", form: "Hisuian" },
+
+  // Special Form Slots & Gen 9 (ID 1064+)[span_4](start_span)[span_4](end_span)
+  { id: 1064, name: "Rotom", form: "Heat" },
+  { id: 1065, name: "Rotom", form: "Wash" },
+  { id: 1069, name: "Dialga", form: "Origin" },
+  { id: 1070, name: "Palkia", form: "Origin" },
+  { id: 1071, name: "Giratina", form: "Origin" },
+  { id: 1113, name: "Greninja", form: "Ash-Greninja" },
   { id: 1400, name: "Koraidon", form: "Base" },
   { id: 1401, name: "Miraidon", form: "Base" },
-  { id: 1416, name: "Ogerpon", form: "Base / Mask Slot 1" },
+  { id: 1416, name: "Ogerpon", form: "Base" },
   { id: 1431, name: "Terapagos", form: "Normal" },
   { id: 1432, name: "Terapagos", form: "Terastal" },
   { id: 1433, name: "Terapagos", form: "Stellar" },
+
+  // Gigantamax & Legends Z-A Forms (ID 1489 - 1577)[span_5](start_span)[span_5](end_span)
   { id: 1489, name: "Venusaur", form: "Gigantamax" },
   { id: 1491, name: "Charizard", form: "Gigantamax" },
-  { id: 1521, name: "Urshifu", form: "Single-Strike G-Max" },
-  { id: 1522, name: "Urshifu", form: "Rapid-Strike G-Max" },
+  { id: 1524, name: "Clefable", form: "Mega / Legends Z-A" },
+  { id: 1527, name: "Dragonite", form: "Mega / Legends Z-A" },
+  { id: 1540, name: "Greninja", form: "Mega / Legends Z-A" },
   { id: 1577, name: "Dialga", form: "Mega / Legends Z-A" }
 ];
 
-// ระบบอ่านไฟล์เซฟ
-document.getElementById("openSaveBtn").onclick = () => {
-  const fileInput = document.getElementById("file");
-  if (!fileInput.files.length) {
-    alert("กรุณาเลือกไฟล์เซฟ (.srm/.sav) ก่อนครับ");
-    return;
-  }
-  
-  const file = fileInput.files[0];
-  const reader = new FileReader();
+// ==========================================
+// 2. UI & SEARCH SYSTEM INTEGRATION
+// ==========================================
 
-  reader.onload = (e) => {
-    saveBuffer = new Uint8Array(e.target.result);
-    document.getElementById("fileInfo").innerText = `ไฟล์ที่เปิด: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    document.getElementById("status").innerText = `✅ เปิดไฟล์เซฟเรียบร้อยแล้ว! (ขนาดไบต์: ${saveBuffer.length} bytes)\nพร้อมสำหรับการแก้ไขข้อมูล ROM Map`;
-  };
-
-  reader.onerror = () => {
-    document.getElementById("status").innerText = "❌ เกิดข้อผิดพลาดในการอ่านไฟล์เซฟ";
-  };
-
-  reader.readAsArrayBuffer(file);
-};
-
+// ฟังก์ชันค้นหาและสร้างตัวเลือก Pokémon ใน UI[span_6](start_span)[span_6](end_span)
 function renderPokemonPicker(filterText = "") {
   const container = document.getElementById("pokemonPicker");
-  container.innerHTML = "";
+  if (!container) return;
+
+  const query = filterText.toLowerCase().trim();
   
-  const filtered = POKEMON_MAP.filter(p => 
-    p.name.toLowerCase().includes(filterText.toLowerCase()) || 
-    p.id.toString().includes(filterText)
+  // กรองจากทั้งชื่อ (Name) และรหัส ID[span_7](start_span)[span_7](end_span)
+  const filtered = POKEMON_DATABASE.filter(p => 
+    p.name.toLowerCase().includes(query) || 
+    p.id.toString() === query
   );
 
-  filtered.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "pokemon-card";
-    card.innerHTML = `
-      <b>#${String(p.id).padStart(4, '0')} ${p.name}</b>
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="picker-status">❌ ไม่พบ Pokémon ที่ค้นหา</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => `
+    <div class="pokemon-card" onclick="selectPokemon(${p.id}, '${p.name}', '${p.form}')">
+      <b>${p.name}</b>
       <small>${p.form}</small>
-    `;
-    card.onclick = () => selectPokemon(p);
-    container.appendChild(card);
-  });
+      <small class="small">ID: ${p.id}</small>
+    </div>
+  `).join("");
 }
 
-function selectPokemon(p) {
-  document.getElementById("speciesId").value = p.id;
-  document.getElementById("newSpecies").value = p.id;
-  document.getElementById("selectedPokemonName").innerText = p.name;
-  document.getElementById("selectedPokemonId").innerText = p.id;
-  document.getElementById("selectedPokemonForm").innerText = p.form;
-  document.getElementById("selectedPokemon").hidden = false;
+// ฟังก์ชันเมื่อคลิกเลือก Pokémon -> ส่งค่า ID เข้า Input ของ Party และ PC Box[span_8](start_span)[span_8](end_span)
+function selectPokemon(id, name, form) {
+  const displayName = `${name} (${form})`;
+
+  // 1. อัปเดตช่อง Species ID หลักสำหรับแก้ไขตัวที่เลือก[span_9](start_span)[span_9](end_span)
+  const speciesInput = document.getElementById("speciesId");
+  if (speciesInput) {
+    speciesInput.value = id;
+    // ส่ง Trigger event ปลุกให้ระบบเดิมทำงาน (ถ้ามีฟังชัน update ค่าเดิมอยู่)
+    speciesInput.dispatchEvent(new Event("change"));
+    speciesInput.dispatchEvent(new Event("input"));
+  }
+
+  // 2. อัปเดตช่อง Add/Create Pokémon สำหรับ PC Box[span_10](start_span)[span_10](end_span)
+  const newSpeciesInput = document.getElementById("newSpecies");
+  if (newSpeciesInput) {
+    newSpeciesInput.value = id;
+    newSpeciesInput.dispatchEvent(new Event("change"));
+  }
+
+  // 3. แสดงชื่อและ ID Pokémon ที่เลือกบนหน้าจอ UI[span_11](start_span)[span_11](end_span)
+  const selectedName = document.getElementById("selectedPokemonName");
+  const selectedId = document.getElementById("selectedPokemonId");
+  const selectedWrap = document.getElementById("selectedPokemon");
+
+  if (selectedName) selectedName.textContent = displayName;
+  if (selectedId) selectedId.textContent = id;
+  if (selectedWrap) selectedWrap.hidden = false;
+
+  // ไฮไลต์การ์ดที่ถูกเลือก[span_12](start_span)[span_12](end_span)
+  document.querySelectorAll(".pokemon-card").forEach(el => el.classList.remove("selected"));
 }
 
-document.getElementById("pokemonSearch").oninput = (e) => renderPokemonPicker(e.target.value);
-document.getElementById("clearPokemonSearch").onclick = () => {
-  document.getElementById("pokemonSearch").value = "";
+// ==========================================
+// 3. EVENT LISTENERS (การเชื่อมต่อระบบปุ่มกด)
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  // 1. โหลดการ์ด Pokémon ทั้งหมดขึ้นมาแสดงตอนเริ่มต้น[span_13](start_span)[span_13](end_span)
   renderPokemonPicker();
-};
 
-renderPokemonPicker();
-</script>
-</body>
-</html>
+  // 2. ระบบค้นหาผ่านช่องพิมพ์ text[span_14](start_span)[span_14](end_span)
+  const searchInput = document.getElementById("pokemonSearch");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => renderPokemonPicker(e.target.value));
+  }
+
+  // 3. ปุ่มกดล้างคำค้นหา[span_15](start_span)[span_15](end_span)
+  const clearBtn = document.getElementById("clearPokemonSearch");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      renderPokemonPicker("");
+    });
+  }
+});
