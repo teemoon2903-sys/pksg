@@ -9,55 +9,37 @@
 body{margin:0;background:#f2f3f5;color:#171717;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .wrap{max-width:1100px;margin:auto;padding:16px}
 .head{background:#111;color:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
-h1,h2,h3{margin:0 0 10px}.sub{opacity:.75}
+h1,h2{margin:0 0 10px}.sub{opacity:.75}
 .card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 15px #0001}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 label{font-weight:700;font-size:13px;display:block}
 input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff;font:inherit}
 button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}
-.primary{background:#111;color:#fff}.secondary{background:#e8e8e8}.danger{background:#fff0f0;color:#9b1c1c}
-.status{background:#f3f3f3;border-radius:10px;padding:11px;white-space:pre-wrap}
+.primary{background:#111;color:#fff}.secondary{background:#e8e8e8}
+.status{background:#eef7ee;color:#1e4620;border:1px solid #b7e1cd;border-radius:10px;padding:11px;white-space:pre-wrap;margin-top:10px}
 .small{font-size:12px;color:#666}
 .tabs{display:flex;gap:7px;overflow:auto;margin:10px 0}
-.tab{white-space:nowrap}.tab.active{background:#111;color:#fff}
-.party{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
-.slot{border:1px solid #ddd;border-radius:14px;padding:8px;text-align:center;background:#fafafa;cursor:pointer}
-.slot.active{border:2px solid #111}
-.slot img{width:75px;height:75px;image-rendering:pixelated;object-fit:contain}
-.empty{opacity:.45}
-.boxgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
-.boxslot{min-height:110px}
-@media(max-width:650px){
- .party{grid-template-columns:repeat(3,1fr)}
- .boxgrid{grid-template-columns:repeat(5,1fr)}
-}
-.modal{display:none;position:fixed;inset:0;background:#0008;z-index:30;padding:12px;overflow:auto}
-.modal.show{display:block}
-.modalbox{max-width:760px;margin:20px auto;background:#fff;border-radius:20px;padding:18px}
-.modalhead{display:flex;justify-content:space-between;align-items:center}
-.pokehead{display:flex;gap:15px;align-items:center}
-.pokehead img{width:120px;height:120px;image-rendering:pixelated}
-.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-@media(max-width:500px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+.tab{white-space:nowrap;padding:8px 16px;border-radius:8px;background:#e8e8e8;cursor:pointer}.tab.active{background:#111;color:#fff}
+.panel{display:block}
 
 .pokemon-picker-wrap{margin-top:12px}
 .pokemon-search-row{display:flex;gap:8px}
 .pokemon-search-row input{flex:1}
 .pokemon-picker{
  display:grid;
- grid-template-columns:repeat(auto-fill,minmax(115px,1fr));
+ grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
  gap:8px;
  margin-top:10px;
- max-height:430px;
+ max-height:350px;
  overflow:auto;
- padding:5px;
+ padding:8px;
  border:1px solid #eee;
  border-radius:14px;
  background:#fafafa;
 }
 .pokemon-card{
  border:2px solid transparent;
- border-radius:14px;
+ border-radius:12px;
  padding:8px 5px;
  text-align:center;
  background:#fff;
@@ -66,16 +48,13 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 }
 .pokemon-card:hover{transform:translateY(-2px);box-shadow:0 3px 10px #0002}
 .pokemon-card.selected{border-color:#111;background:#eee}
-.pokemon-card img{width:72px;height:72px;object-fit:contain;image-rendering:pixelated}
 .pokemon-card b{display:block;font-size:12px;line-height:1.2}
 .pokemon-card small{display:block;color:#777;margin-top:2px}
-.picker-status{padding:12px;text-align:center;color:#666}
 .selected-pokemon{
  display:flex;align-items:center;gap:10px;
- margin-top:10px;padding:8px 10px;
+ margin-top:10px;padding:10px;
  border-radius:12px;background:#f3f3f3;
 }
-.selected-pokemon img{width:50px;height:50px;image-rendering:pixelated;object-fit:contain}
 </style>
 </head>
 <body>
@@ -90,9 +69,10 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <input id="file" type="file" accept=".srm,.sav,.dat">
 <button class="primary" type="button" id="openSaveBtn" style="margin-top:10px">📂 เปิด/อ่านเซฟ</button>
 <div id="fileInfo" class="small" style="margin-top:8px">ยังไม่ได้เปิดเซฟ</div>
+
 <div class="tabs">
-<button class="tab active" data-tab="party">🐉 Party</button>
-<button class="tab" data-tab="pc">📦 PC</button>
+ <button class="tab active" data-tab="party">🐉 Party</button>
+ <button class="tab" data-tab="pc">📦 PC</button>
 </div>
 <div id="status" class="status">รอเปิดไฟล์เซฟ</div>
 </div>
@@ -130,7 +110,8 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 </div>
 
 <script>
-// แมปข้อมูล ID จาก TXT (Master ROM Map)
+let saveBuffer = null;
+
 const POKEMON_MAP = [
   { id: 1, name: "Bulbasaur", form: "Base" },
   { id: 2, name: "Ivysaur", form: "Base" },
@@ -165,6 +146,30 @@ const POKEMON_MAP = [
   { id: 1577, name: "Dialga", form: "Mega / Legends Z-A" }
 ];
 
+// ระบบอ่านไฟล์เซฟ
+document.getElementById("openSaveBtn").onclick = () => {
+  const fileInput = document.getElementById("file");
+  if (!fileInput.files.length) {
+    alert("กรุณาเลือกไฟล์เซฟ (.srm/.sav) ก่อนครับ");
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    saveBuffer = new Uint8Array(e.target.result);
+    document.getElementById("fileInfo").innerText = `ไฟล์ที่เปิด: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    document.getElementById("status").innerText = `✅ เปิดไฟล์เซฟเรียบร้อยแล้ว! (ขนาดไบต์: ${saveBuffer.length} bytes)\nพร้อมสำหรับการแก้ไขข้อมูล ROM Map`;
+  };
+
+  reader.onerror = () => {
+    document.getElementById("status").innerText = "❌ เกิดข้อผิดพลาดในการอ่านไฟล์เซฟ";
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
 function renderPokemonPicker(filterText = "") {
   const container = document.getElementById("pokemonPicker");
   container.innerHTML = "";
@@ -195,16 +200,12 @@ function selectPokemon(p) {
   document.getElementById("selectedPokemon").hidden = false;
 }
 
-document.getElementById("pokemonSearch").oninput = (e) => {
-  renderPokemonPicker(e.target.value);
-};
-
+document.getElementById("pokemonSearch").oninput = (e) => renderPokemonPicker(e.target.value);
 document.getElementById("clearPokemonSearch").onclick = () => {
   document.getElementById("pokemonSearch").value = "";
   renderPokemonPicker();
 };
 
-// โหลดรายการเมื่อเริ่มต้น
 renderPokemonPicker();
 </script>
 </body>
