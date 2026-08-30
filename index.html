@@ -17,6 +17,8 @@
   if(id<14)order.push(id);
  }
  if(order.length!==14||new Set(order).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot ที่สมบูรณ์");
+ // SoulGold's save writer continues from the next physical sector.
+ // Preserve the source block's logical section order and rotate its physical start by one.
  const rotated=[order[order.length-1],...order.slice(0,-1)];
  for(let physical=0;physical<14;physical++){
   const id=rotated[physical],po=(targetBase+physical)*SECTOR;
