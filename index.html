@@ -323,39 +323,120 @@ function u32(a,o){return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0}
 function w16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}
 function w32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
 
+const SECTOR_SIZE=4096;
+const SECTOR_DATA_SIZE=3968;
+const SAVE_BLOCK3_CHUNK_SIZE=116;
+const SECTOR_SIGNATURE=0x08012025;
+const SECTION_SIZES=[0xB30,0xF80,0xF80,0xF80,0xDD4,0xF80,0xF80,0xF80,0xF80,0xF80,0xF80,0xF80,0xF80,0xF80];
+const SB2_SIZE=SECTION_SIZES[0];
+const SB1_SIZE=SECTION_SIZES[1]+SECTION_SIZES[2]+SECTION_SIZES[3]+SECTION_SIZES[4];
+const STORAGE_REGULAR_SIZE=SECTION_SIZES.slice(5).reduce((a,b)=>a+b,0);
+const STORAGE_OVERFLOW_SIZE=37036-STORAGE_REGULAR_SIZE;
+const SB1_LOGICAL_OFFSET=SB2_SIZE;
+const STORAGE_LOGICAL_OFFSET=SB2_SIZE+SB1_SIZE;
+
 function checksum(data){
  let s=0;
  for(let i=0;i<data.length;i+=4)s=(s+u32(data,i))>>>0;
  return ((s&65535)+(s>>>16))&65535;
 }
 
-function parseSlots(){
- const slots=[];
- for(let base of [0,14]){
-  let sectors={};let counter=-1;
-  for(let i=0;i<14;i++){
-   let off=(base+i)*4096,id=u16(bytes,off+4084),c=u32(bytes,off+4092);
-   if(id<14){sectors[id]=bytes.slice(off,off+3968);counter=Math.max(counter,c)}
-  }
-  let valid=Object.keys(sectors).length===14;
-  if(valid)slots.push({base,counter,sectors})
+function readSectors(b){
+ const list=[];
+ for(let physical=0;physical<b.length/SECTOR_SIZE;physical++){
+  const po=physical*SECTOR_SIZE;
+  const sig=u32(b,po+4088);
+  if(sig!==SECTOR_SIGNATURE)continue;
+  list.push({
+   physical,
+   base:physical<14?0:14,
+   id:u16(b,po+4084),
+   stored:u16(b,po+4086),
+   signature:sig,
+   counter:u32(b,po+4092),
+   data:b.slice(po,po+SECTOR_DATA_SIZE),
+   saveBlock3:b.slice(po+SECTOR_DATA_SIZE,po+4084)
+  });
  }
- if(!slots.length)throw Error("ไม่พบ Save Slot ที่ครบ 14 sectors");
- slots.sort((a,b)=>b.counter-a.counter);
- return slots[0];
+ return list;
+}
+
+function chooseSlot(sectors){
+ const groups=new Map();
+ for(const x of sectors){
+  if(x.id>=14)continue;
+  const key=x.base+':'+x.counter;
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(x);
+ }
+ const candidates=[];
+ for(const [key,list] of groups){
+  const [base,counter]=key.split(':').map(Number);
+  const map=new Map();
+  for(const x of list)if(!map.has(x.id))map.set(x.id,x);
+  if(map.size!==14)continue;
+  let valid=true;
+  for(let id=0;id<14;id++){
+   const x=map.get(id),size=SECTION_SIZES[id];
+   if(checksum(x.data.slice(0,size))!==x.stored){valid=false;break}
+  }
+  candidates.push({base,counter,list:[...map.values()],map,valid});
+ }
+ candidates.sort((a,b)=>Number(b.valid)-Number(a.valid)||b.counter-a.counter);
+ return candidates[0]||null;
 }
 
 function buildLogical(slot){
- let out=new Uint8Array(14*3968);
- for(let i=0;i<14;i++)out.set(slot.sectors[i],i*3968);
+ const total=SECTION_SIZES.reduce((a,b)=>a+b,0);
+ const out=new Uint8Array(total);
+ let at=0;
+ for(let id=0;id<14;id++){
+  const sec=slot.map.get(id);
+  const size=SECTION_SIZES[id];
+  if(sec)out.set(sec.data.slice(0,size),at);
+  at+=size;
+ }
  return out;
 }
 
-function boxMonAt(box,slot){
-  // SoulGold keeps the original 15 boxes contiguous, then stores Box 16
-  // in the extension area at 0x87B8.
-  return box<15 ? 0x04+(box*30+slot)*76 : 0x87B8+slot*76;
- }
+function sectionOffset(id){
+ let o=0;
+ for(let i=0;i<id;i++)o+=SECTION_SIZES[i];
+ return o;
+}
+
+function saveblock1(){return logical.slice(SB1_LOGICAL_OFFSET,SB1_LOGICAL_OFFSET+SB1_SIZE)}
+function writeSB1(sb){logical.set(sb.slice(0,SB1_SIZE),SB1_LOGICAL_OFFSET)}
+function storageData(){
+ const out=new Uint8Array(37036);
+ out.set(logical.slice(STORAGE_LOGICAL_OFFSET,STORAGE_LOGICAL_OFFSET+STORAGE_REGULAR_SIZE),0);
+ if(current?.overflow)out.set(current.overflow.slice(0,STORAGE_OVERFLOW_SIZE),STORAGE_REGULAR_SIZE);
+ return out;
+}
+function writeStorage(storage){
+ logical.set(storage.slice(0,STORAGE_REGULAR_SIZE),STORAGE_LOGICAL_OFFSET);
+ if(!current.overflow)current.overflow=new Uint8Array(STORAGE_OVERFLOW_SIZE);
+ current.overflow.set(storage.slice(STORAGE_REGULAR_SIZE,STORAGE_REGULAR_SIZE+STORAGE_OVERFLOW_SIZE));
+}
+function boxMonAt(box,slot){return 0x04+(box*30+slot)*76}
+
+function parseSlots(){
+ const slot=chooseSlot(readSectors(bytes));
+ if(!slot)throw Error("ไม่พบ Save Slot ที่ครบ 14 sectors");
+ slot.sectors=Object.fromEntries(slot.map);
+ slot.lastWritten=(slot.map.get(0).physical-slot.base+14)%14;
+ slot.overflow=getActiveOverflow(bytes,slot);
+ return slot;
+}
+
+function getActiveOverflow(b,slot){
+ const physical=30+(slot.base===0?0:1);
+ const po=physical*SECTOR_SIZE;
+ const sig=u32(b,po+4088),id=u16(b,po+4084),counter=u32(b,po+4092);
+ if(sig===SECTOR_SIGNATURE && id===physical && counter===slot.counter) return b.slice(po,po+STORAGE_OVERFLOW_SIZE);
+ // The source save engine uses sector 30 for slot 1 and 31 for slot 2, independent of rotation.
+ return new Uint8Array(STORAGE_OVERFLOW_SIZE);
+}
 
 function readMonFrom(data,off,isParty=false){
  const raw=data.slice(off,off+76),pid=u32(raw,0),ot=u32(raw,4);
@@ -368,22 +449,20 @@ function readMonFrom(data,off,isParty=false){
  const headerNature=(raw[18]>>>3)&31;
  const nature=(pid%25)^headerNature;
  const shiny=(raw[30]&64)?1:0;
- let level=isParty?data[off+80]:Math.max(1,levelFromExp(exp));
+ const level=isParty?data[off+84]:Math.max(1,levelFromExp(exp));
  return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
 }
 
 function levelFromExp(exp){
- // Medium-Slow growth is used by Fennekin and is the default for this editor.
- // Use the exact Gen-III/IV lookup formula rather than a cube-root approximation.
  let best=1;
  for(let l=1;l<=100;l++){
-  if(exp>=expForLevel(l)) best=l; else break;
+  if(exp>=expForLevel(l))best=l;else break;
  }
  return best;
 }
 
 function getPartyData(){
- const sb=logical.slice(3968,3968*5);
+ const sb=logical.slice(4080,4080*5);
  let count=sb[0x234],mons=[];
  for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
  return {sb,count,mons};
@@ -418,20 +497,9 @@ function render(){
   `โหลดแล้ว • Save slot ${activeSlot+1} • Counter ${current.counter}\nParty ${p.count}/6 • PC 16 กล่อง × 30 ช่อง`;
 }
 
-function saveblock1(){return logical.slice(3968,3968+4*3968)}
-function writeSB1(sb){
- for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
-}
-function applyGeneral(){
- let sb=saveblock1();
- sb[0x234]=+document.getElementById("partyCount").value;
- w32(sb,0x490,Math.min(9999999,+document.getElementById("money").value));
- writeSB1(sb);render()
-}
-
 function openEditor(where,index){
- let sb=where==="party"?saveblock1():logical.slice(5*3968,14*3968);
- let off=where==="party"?0x238+index*100:boxMonAt(current.box,index);
+ let sb=where==="party"?saveblock1():storageData();
+ let off=where==="party"?0x238+index*100:4+(current.box*30+index)*76;
  let m=readMonFrom(sb,off,where==="party");
  current.edit={where,index,off,m};
  document.getElementById("eSpecies").value=m.species;
@@ -506,7 +574,7 @@ function applyMon(){
  }
  for(let i=0;i<4;i++)vals.moves.push(+document.getElementById("mv"+i).value);
 
- let sb=e.where==="party"?saveblock1():logical.slice(5*3968,14*3968);
+ let sb=e.where==="party"?saveblock1():storageData();
  let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
 
  // Gen-III-style Pokémon data stores EXP at +0x44 (24-bit).
@@ -520,11 +588,11 @@ function applyMon(){
 
  if(e.where==="party"){
   // Party cache: +0x54 is the displayed/current level.
-  sb[off+80]=level;
+  sb[off+84]=level;
   writeSB1(sb)
  }else{
   // PC Pokémon has no party level cache; EXP determines its level.
-  logical.set(sb,5*3968)
+  writeStorage(sb)
  }
  closeEditor();render();
  document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
@@ -540,7 +608,7 @@ function renderBox(){
  }
  current.box=+sel.value;
  const grid=document.getElementById("boxGrid");grid.innerHTML="";
- const storage=logical.slice(5*3968,14*3968);
+ const storage=storageData();
  for(let i=0;i<30;i++){
   let m=readMonFrom(storage,boxMonAt(current.box,i));
   let d=document.createElement("div");
@@ -567,7 +635,7 @@ function createPCMon(){
  if(!sp||sp<1||sp>2047){alert("กรุณาเลือก Pokémon ก่อน");return}
  if(slot<0||slot>29){alert("ช่อง PC ต้องอยู่ระหว่าง 1-30");return}
 
- let storage=logical.slice(5*3968,14*3968),
+ let storage=storageData(),
  off=boxMonAt(box,slot),
  raw=new Uint8Array(76);
 
@@ -583,7 +651,7 @@ function createPCMon(){
  w16(raw,28,pokemonChecksum(raw));
 
  storage.set(raw,off);
- logical.set(storage,5*3968);
+ writeStorage(storage);
  render();
  document.getElementById("status").textContent=
   `สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
@@ -620,68 +688,38 @@ function setItem(){
 }
 
 function rebuildSave(){
- const out=bytes.slice(),slot=current;
- // SoulGold save format: 3968 bytes of section data, 116 bytes of
- // SaveBlock3 chunk, then the 12-byte footer. Section 13 is FULL SIZE
- // (3968 bytes) in SoulGold; the extra 1324 bytes live in sector 30/31.
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
- const DATA_SIZE=3968, CHUNK_SIZE=116, FOOTER_SIZE=12;
+ const out=bytes.slice();
+ const slot=current;
  const newCounter=(slot.counter+1)>>>0;
- const targetBase=(newCounter%2)===0?0:14;
-
- // Preserve the ROM's sector rotation. The next save moves every section
- // one physical sector forward instead of rewriting them in ID order.
- const sourceById=new Map();
- const sourcePhysicalById=new Map();
- for(let physical=0;physical<14;physical++){
-  const po=(slot.base+physical)*4096;
-  const id=u16(bytes,po+4084);
-  if(id<14){
-   sourceById.set(id,po);
-   sourcePhysicalById.set(id,physical);
-  }
- }
- if(sourceById.size!==14)throw new Error("ไม่พบ sector 0–13 ครบชุดสำหรับ Export");
+ const targetBase=newCounter%2===0?0:14;
+ const newLastWritten=(slot.lastWritten+1)%14;
 
  for(let id=0;id<14;id++){
-  const sourcePhysical=sourcePhysicalById.get(id);
-  const targetPhysical=(sourcePhysical+1)%14;
-  const po=(targetBase+targetPhysical)*4096;
+  const physical=targetBase+((id+newLastWritten)%14);
+  const po=physical*SECTOR_SIZE;
   const size=SECTION_SIZES[id];
-  const data=logical.slice(id*DATA_SIZE,id*DATA_SIZE+size);
-  const sourcePo=sourceById.get(id);
-
-  // The game clears the complete sector before writing. Preserve only the
-  // current SaveBlock3 chunk for this section; do not carry unrelated bytes.
-  out.fill(0,po,po+4096);
+  const data=logical.slice(sectionOffset(id),sectionOffset(id)+size);
+  out.fill(0,po,po+SECTOR_SIZE);
   out.set(data,po);
-  out.set(bytes.slice(sourcePo+DATA_SIZE,sourcePo+DATA_SIZE+CHUNK_SIZE),po+DATA_SIZE);
-
+  // SaveBlock3 is a separate 116-byte chunk and is NOT part of the sector checksum.
+  const old=current.map.get(id);
+  if(old)out.set(old.saveBlock3,po+SECTOR_DATA_SIZE);
   w16(out,po+4084,id);
   w16(out,po+4086,checksum(data));
-  w32(out,po+4088,0x08012025);
+  w32(out,po+4088,SECTOR_SIGNATURE);
   w32(out,po+4092,newCounter);
  }
 
- // SoulGold Box 16 extension: 1324 bytes live in sector 30/31,
- // selected by save-counter parity. Preserve the edited/current extension.
- const OVERFLOW_SIZE=1324;
- const oldOverflowPhysical=30+(slot.counter%2);
- const newOverflowPhysical=30+(newCounter%2);
- const oldOo=oldOverflowPhysical*4096;
- const newOo=newOverflowPhysical*4096;
-
- if(oldOo+OVERFLOW_SIZE>bytes.length || newOo+4096>out.length)
-  throw new Error("ไม่พบพื้นที่ Box 16 overflow ในเซฟ");
-
- const overflow=bytes.slice(oldOo,oldOo+OVERFLOW_SIZE);
- out.fill(0,newOo,newOo+4096);
- out.set(overflow,newOo);
- w16(out,newOo+4084,newOverflowPhysical);
- w16(out,newOo+4086,checksum(overflow));
- w32(out,newOo+4088,0x08012025);
- w32(out,newOo+4092,newCounter);
-
+ // Box 16 overflow: sector 30 belongs to save slot 1, sector 31 to slot 2.
+ const overflowPhysical=targetBase===0?30:31;
+ const oo=overflowPhysical*SECTOR_SIZE;
+ out.fill(0,oo,oo+SECTOR_SIZE);
+ const overflow=current.overflow||new Uint8Array(STORAGE_OVERFLOW_SIZE);
+ out.set(overflow.slice(0,STORAGE_OVERFLOW_SIZE),oo);
+ w16(out,oo+4084,overflowPhysical);
+ w16(out,oo+4086,checksum(overflow.slice(0,STORAGE_OVERFLOW_SIZE)));
+ w32(out,oo+4088,SECTOR_SIGNATURE);
+ w32(out,oo+4092,newCounter);
  return out;
 }
 
@@ -705,10 +743,11 @@ function exportSave(){
   const out=rebuildSave();
   dl(out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
 
+  const exportedCounter=(current.counter+1)>>>0;
   document.getElementById("status").textContent=
-   "✅ Export สำเร็จ • Save Slot "+(activeSlot+1)+
-   " • Counter "+current.counter+
-   " • ตรวจสอบ sector/checksum แล้ว";
+   "✅ Export สำเร็จ • Save Slot "+(exportedCounter%2===0?1:2)+
+   " • Counter "+exportedCounter+
+   " • แก้ข้อมูลถูกเขียนลง save sector แล้ว";
  }catch(e){
   document.getElementById("status").textContent=
    "❌ Export ถูกยกเลิก: "+e.message;
@@ -721,99 +760,27 @@ function exportBackup(){
 
 function validateSave(silent=false){
  const diag=document.getElementById("saveDiagnostics");
-
  if(!bytes||!current||!logical){
   if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";
   return {ok:false,message:"ยังไม่ได้เปิดเซฟ"};
  }
-
- const problems=[],ids=new Set();
- let validCount=0,checksumOK=0;
- const base=current.base;
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
-
- for(let physical=0;physical<14;physical++){
-  const po=(base+physical)*4096;
-  const id=u16(bytes,po+4084);
-  const stored=u16(bytes,po+4086);
-  const sig=u32(bytes,po+4088);
-
-  if(sig!==0x08012025){
-   problems.push("Sector physical "+physical+": signature ไม่ถูกต้อง");
-   continue;
-  }
-
-  if(id<0 || id>=14){
-   problems.push("Sector physical "+physical+": Sector ID ไม่ถูกต้อง ("+id+")");
-   continue;
-  }
-
-  validCount++;
+ const problems=[];
+ let checksumOK=0;
+ const ids=new Set();
+ for(const [id,x] of current.map){
   ids.add(id);
-
-  // IMPORTANT: checksum length depends on Section ID; it is not always 3968 bytes.
-  const size=SECTION_SIZES[id]??3968;
-  const data=bytes.slice(po,po+size);
-  const calc=checksum(data);
-
-  if(calc===stored){
-   checksumOK++;
-  }else{
-   problems.push(
-    "Sector "+id+" checksum ไม่ตรง (ไฟล์ "+stored+" / คำนวณ "+calc+")"
-   );
-  }
+  const size=SECTION_SIZES[id];
+  const calc=checksum(x.data.slice(0,size));
+  if(calc===x.stored)checksumOK++;
+  else problems.push("Sector "+id+" checksum ไม่ตรง (ไฟล์ "+x.stored+" / คำนวณ "+calc+")");
  }
-
- if(ids.size!==14){
-  const missing=[];
-  for(let i=0;i<14;i++)if(!ids.has(i))missing.push(i);
-  problems.push("Sector ID ไม่ครบ 0–13 (ขาด: "+missing.join(", ")+")");
- }
-
- // All 14 regular sections in one SoulGold save slot must share the same counter.
- const counters=new Set();
- for(let physical=0;physical<14;physical++){
-  const po=(base+physical)*4096;
-  if(u32(bytes,po+4088)===0x08012025)counters.add(u32(bytes,po+4092));
- }
- if(counters.size!==1)problems.push("Save Counter ของ 14 sector ไม่ตรงกัน");
-
- // SoulGold's 16-box extension uses sector 30/31 for 1324 bytes.
- const overflowPhysical=30+(current.counter%2);
- const overflowPo=overflowPhysical*4096;
- if(overflowPo+4096<=bytes.length){
-  const osig=u32(bytes,overflowPo+4088), oid=u16(bytes,overflowPo+4084);
-  const ostored=u16(bytes,overflowPo+4086);
-  const ocalc=checksum(bytes.slice(overflowPo,overflowPo+1324));
-  const ocounter=u32(bytes,overflowPo+4092);
-  if(oid!==overflowPhysical || osig!==0x08012025 || ocounter!==current.counter || ostored!==ocalc){
-   problems.push("Box 16 overflow sector "+overflowPhysical+" checksum/metadata ไม่ตรง");
-  }
- }else{
-  problems.push("ไม่พบ Box 16 overflow sector "+overflowPhysical);
- }
-
- if(bytes.length!==131072){
-  problems.push("ขนาดไฟล์ไม่ถูกต้อง ("+bytes.length+" bytes)");
- }
-
+ for(let id=0;id<14;id++)if(!ids.has(id))problems.push("ขาด Sector ID "+id);
  const ok=problems.length===0;
-
  const msg=ok
-  ? "✅ Save Slot "+(activeSlot+1)+" ผ่านการตรวจสอบ"+
-    "\nSector ครบ "+validCount+"/14"+
-    "\nChecksum ผ่าน "+checksumOK+"/14"+
-    "\nCounter "+current.counter
-  : "❌ พบปัญหาใน Save Slot "+(activeSlot+1)+
-    "\n"+problems.join("\n")+
-    "\n\nSector ที่อ่านได้ "+validCount+"/14"+
-    "\nChecksum ผ่าน "+checksumOK+"/14"+
-    "\nCounter "+current.counter;
-
+  ? `✅ Save Slot ${activeSlot+1} ผ่านการตรวจสอบ\nSector ครบ 14/14\nChecksum ผ่าน ${checksumOK}/14\nCounter ${current.counter}`
+  : `❌ พบปัญหาใน Save Slot ${activeSlot+1}\n${problems.join("\n")}\n\nSector ที่อ่านได้ ${ids.size}/14\nChecksum ผ่าน ${checksumOK}/14\nCounter ${current.counter}`;
  if(diag)diag.textContent=msg;
  if(!silent)document.getElementById("status").textContent=msg;
-
  return {ok,message:problems.join("; ")};
 }
 
@@ -963,30 +930,29 @@ document.getElementById("clearPokemonSearch").addEventListener("click",()=>{
 });
 document.getElementById("editorPokemonSearch").addEventListener("input",renderEditorPokemonPicker);
 
-document.getElementById("file").onchange=async e=>{
- const f=e.target.files[0];
+async function loadSelectedFile(f){
  if(!f)return;
  filename=f.name;
  bytes=new Uint8Array(await f.arrayBuffer());
  original=bytes.slice();
+ if(bytes.length!==131072)throw Error("ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ");
+ current=parseSlots();
+ logical=buildLogical(current);
+ activeSlot=current.base===0?0:1;
+ current.overflow=current.overflow||new Uint8Array(STORAGE_OVERFLOW_SIZE);
+ document.getElementById("fileInfo").textContent=`${filename} • 128 KiB • latest counter ${current.counter}`;
+ document.getElementById("status").textContent=`✅ เปิดเซฟสำเร็จ • Sector 14/14 • Counter ${current.counter}`;
+ render();
+}
 
- if(bytes.length!==131072){
-  document.getElementById("status").textContent=
-   "ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";
-  return
- }
+document.getElementById("file").onchange=async e=>{
+ try{await loadSelectedFile(e.target.files[0])}
+ catch(err){document.getElementById("status").textContent="❌ อ่านเซฟไม่สำเร็จ: "+err.message;console.error(err)}
+};
 
- try{
-  current=parseSlots();
-  logical=buildLogical(current);
-  activeSlot=current.base===0?0:1;
-  document.getElementById("fileInfo").textContent=
-   `${filename} • 128 KiB • latest counter ${current.counter}`;
-  render()
- }catch(err){
-  document.getElementById("status").textContent=
-   "อ่านเซฟไม่สำเร็จ: "+err.message
- }
+document.getElementById("openSaveBtn").onclick=async()=>{
+ try{await loadSelectedFile(document.getElementById("file").files[0])}
+ catch(err){document.getElementById("status").textContent="❌ เปิดเซฟไม่สำเร็จ: "+err.message;console.error(err)}
 };
 
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
@@ -995,110 +961,6 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
  document.querySelectorAll(".panel").forEach(x=>x.hidden=true);
  document.getElementById(b.dataset.tab).hidden=false;
 });
-
-/* =========================
-   Explicit iOS Save Loader
-   ========================= */
-(function(){
- const input=document.getElementById('file'),
- info=document.getElementById('fileInfo'),
- status=document.getElementById('status'),
- btn=document.getElementById('openSaveBtn');
-
- if(!input||!btn)return;
-
- const SECTOR=4096,DATA=3968,SIG=0x08012025;
- const ru16=(a,o)=>a[o]|a[o+1]<<8;
- const ru32=(a,o)=>(a[o]|a[o+1]<<8|a[o+2]<<16|a[o+3]<<24)>>>0;
-
- function readSectors(b){
-  const list=[];
-  for(let i=0;i<b.length/SECTOR;i++){
-   const s=b.subarray(i*SECTOR,(i+1)*SECTOR);
-   if(ru32(s,4088)!==SIG)continue;
-   list.push({
-    physical:i,
-    id:ru16(s,4084),
-    stored:ru16(s,4086),
-    counter:ru32(s,4092),
-    data:s.slice(0,DATA)
-   })
-  }
-  return list
- }
-
- function choose(sectors){
-  const groups=new Map();
-  for(const x of sectors){
-   const k=x.counter;
-   if(!groups.has(k))groups.set(k,[]);
-   groups.get(k).push(x)
-  }
-  return [...groups.entries()]
-   .sort((a,b)=>b[0]-a[0])
-   .map(([counter,list])=>({
-    counter,list,ids:new Set(list.map(x=>x.id))
-   }))
-   .find(x=>[...Array(14).keys()].every(id=>x.ids.has(id)))||null
- }
-
- async function openSave(){
-  const f=input.files&&input.files[0];
-  if(!f){
-   status.textContent='❌ ยังไม่ได้เลือกไฟล์เซฟ';
-   return
-  }
-
-  status.className='status';
-  status.textContent='⏳ กำลังอ่าน '+f.name+' ...';
-  info.textContent=f.name+' • '+f.size.toLocaleString()+' bytes';
-
-  try{
-   const b=new Uint8Array(await f.arrayBuffer());
-   if(b.length!==131072)
-    throw new Error('ต้องเป็นเซฟ 128 KiB (131072 bytes) แต่ไฟล์นี้มี '+b.length+' bytes');
-
-   const sectors=readSectors(b);
-   if(!sectors.length)
-    throw new Error('ไม่พบ Save Sector Signature 0x08012025');
-
-   const slot=choose(sectors);
-   if(!slot)
-    throw new Error('พบ sector แต่ไม่พบชุด Save Slot ครบ 14 sector');
-
-   const map=new Map();
-   for(const x of slot.list)if(!map.has(x.id))map.set(x.id,x);
-
-   window.PKSG_REAL_SAVE={bytes:b,sectors,slot,map,filename:f.name};
-
-   /* sync the main editor state */
-   bytes=b;
-   original=b.slice();
-   filename=f.name;
-   current={
-    base:slot.list.some(x=>x.physical<14)?0:14,
-    counter:slot.counter,
-    sectors:Object.fromEntries([...map].map(([id,x])=>[id,x.data]))
-   };
-   activeSlot=current.base===0?0:1;
-   logical=buildLogical(current);
-
-   info.textContent=f.name+' • 128 KiB • Save Counter '+slot.counter;
-   status.textContent='✅ เปิดเซฟสำเร็จ • '+map.size+'/14 sectors • Counter '+slot.counter;
-
-   render()
-  }catch(e){
-   status.className='status danger';
-   status.textContent='❌ เปิดเซฟไม่สำเร็จ: '+e.message;
-   console.error(e)
-  }
- }
-
- input.addEventListener('change',openSave);
- input.addEventListener('input',openSave);
- btn.addEventListener('click',openSave);
- window.PKSG_openSelectedSave=openSave;
-})();
 
 /* Start Pokémon picker */
 loadPokemonList();
