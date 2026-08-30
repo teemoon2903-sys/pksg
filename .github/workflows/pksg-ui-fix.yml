@@ -1,0 +1,40 @@
+name: PKSG one-time UI fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: !contains(github.event.head_commit.message, 'fix: PKSG UI')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch only sprite/editor functions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old=s
+          sprite=r'''function spriteCandidates(e){if(!e)return[];let id=+e.id,slug=(e.slug||e.name||"").toLowerCase(),out=[];if(id>=1&&id<=1025)out.push("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+id+".png");out.push(SPRITE_RAW+slug+"/icon.png");let m=slug.match(/^(.+?)-(mega(?:-[a-z])?|gmax|alola|galar|hisui|paldea)$/);if(m)out.push(SPRITE_RAW+m[1]+"/"+m[2].replaceAll("-","_")+"/icon.png");let parts=slug.split("-");if(parts.length>1)out.push(SPRITE_RAW+parts[0]+"/"+parts.slice(1).join("_")+"/icon.png");return[...new Set(out)]}'''
+          s,n=re.subn(r'function spriteCandidates\(e\)\{.*?\}\nfunction setImg',sprite+'\nfunction setImg',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('spriteCandidates target not found')
+          helper=r'''function ensureEditorFields(){const iv=document.getElementById("iv"),ev=document.getElementById("ev"),mv=document.getElementById("mv");if(!iv.children.length)iv.innerHTML=STAT.map((n,i)=>`<label class="field">${n}<input id="iv${i}" type="number" min="0" max="31" value="0"></label>`).join("");if(!ev.children.length)ev.innerHTML=STAT.map((n,i)=>`<label class="field">${n}<input id="ev${i}" type="number" min="0" max="252" value="0"></label>`).join("");if(!mv.children.length)mv.innerHTML=[0,1,2,3].map(i=>`<label class="field">Move ${i+1}<input id="mv${i}" type="number" min="0" max="2047" value="0"></label>`).join("")}'''
+          marker='function openEditor(where,i){'
+          if helper not in s:s=s.replace(marker,helper+'\n'+marker,1)
+          s=s.replace('function openEditor(where,i){let off=', 'function openEditor(where,i){ensureEditorFields();let off=',1)
+          if 'ensureEditorFields();let off=' not in s: raise SystemExit('openEditor target not found')
+          p.write_text(s,encoding='utf-8')
+          if s==old: raise SystemExit('no changes made')
+          PY
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "fix: PKSG UI sprite and editor bugs"
+          git rm .github/workflows/pksg-ui-fix.yml
+          git commit -m "chore: remove one-time UI fix workflow"
+          git push
