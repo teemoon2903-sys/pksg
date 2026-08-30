@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PKSG — SoulGold GBA Save Editor</title></head>
+<body><div id="boot" style="font-family:system-ui;padding:20px">กำลังโหลด PKSG…</div>
+<script>
+(async function(){
+  try {
+    var r=await fetch('https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html?cache='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw new Error('โหลด PKSG ต้นฉบับไม่สำเร็จ HTTP '+r.status);
+    var html=await r.text();
+    var patch='\\n<script>(function(){\\nfunction sameSave(a,b){if(!a||!b||a.length!==b.length)return false;for(var i=0;i<a.length;i++){if(a[i]!==b[i])return false;}return true;}\\nfunction install(){if(typeof window.exportSave!=="function")return false;var oldExport=window.exportSave;window.exportSave=function(){try{if(window.bytes&&window.original&&sameSave(window.bytes,window.original)){if(typeof window.dl==="function"){window.dl(window.original,window.filename||"PKSG.srm");if(window.status)window.status.textContent="✅ Export สำเร็จ • ไม่มีการแก้ข้อมูล จึงใช้เซฟต้นฉบับทุก byte";}return;}return oldExport.apply(this,arguments);}catch(e){console.error(e);return oldExport.apply(this,arguments);}};return true;}\\nif(!install()){var n=0,t=setInterval(function(){if(install()||++n>100){clearInterval(t);}},50);}})();<\\/script>\\n';
+    if(html.indexOf('</html>')!==-1) html=html.replace('</html>',patch+'</html>');
+    else html+=patch;
+    document.open();document.write(html);document.close();
+  } catch(e) {
+    document.getElementById('boot').textContent='❌ '+(e&&e.message?e.message:e);
+  }
+})();
+</script></body></html>
