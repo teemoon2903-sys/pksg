@@ -1,0 +1,30 @@
+name: Fix PKSG save loader
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch save loader
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('nn.innerHTML+=', 'ns.innerHTML+=')
+          s=s.replace('n:+nn.value', 'n:0')
+          s=s.replace('open.onclick=()=>f.files[0]&&load(f.files[0]);f.onchange=()=>f.files[0]&&load(f.files[0]);', 'const fileInput=document.getElementById("f"),openBtn=document.getElementById("open");openBtn.onclick=()=>fileInput.files[0]&&load(fileInput.files[0]);fileInput.onchange=()=>fileInput.files[0]&&load(fileInput.files[0]);')
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'PKSG Fix Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: restore save file loader'
+          git push
