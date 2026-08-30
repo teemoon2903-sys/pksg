@@ -1,0 +1,39 @@
+name: PKSG export hotfix
+on:
+  push:
+    paths:
+      - index.html
+      - .pksg-export-hotfix-trigger
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch export handler
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='function rebuild(){const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];for(let i=0;i<14;i++){const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);if(id<14)order.push(id)}if(order.length!==14||new Set(order).size!==14)throw new Error("Save sector order ไม่ถูกต้อง");const rotated=[order[order.length-1],...order.slice(0,-1)];for(let physical=0;physical<14;physical++){const id=rotated[physical],po=(targetBase+physical)*SECTOR,data=sec(id),size=(slot.ss.find(x=>x.id===id)?.size||SIZE[id]);out.fill(0,po,po+SECTOR);out.set(data.slice(0,DATA),po);w16(out,po+4084,id);w16(out,po+4086,csum(data.slice(0,size)));w32(out,po+4088,SIG);w32(out,po+4092,counter)}const check=readSlot(out,targetBase);if(!check||!check.valid||check.counter!==counter)throw new Error("สร้าง Save Slot ใหม่ไม่ผ่านการตรวจสอบ");return out}'
+          new='function rebuild(){const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];for(let i=0;i<14;i++){const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);if(id<14)order.push(id)}if(order.length!==14||new Set(order).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot");const rotated=[order[order.length-1],...order.slice(0,-1)];for(let physical=0;physical<14;physical++){const id=rotated[physical],po=(targetBase+physical)*SECTOR,data=sec(id),size=(slot.ss.find(x=>x.id===id)?.size||SIZE[id]);out.fill(0,po,po+SECTOR);out.set(data.slice(0,DATA),po);w16(out,po+4084,id);w16(out,po+4086,csum(data.slice(0,size)));w32(out,po+4088,SIG);w32(out,po+4092,counter)}return out}'
+          if old not in s:
+              raise SystemExit('expected rebuild function not found')
+          s=s.replace(old,new,1)
+          old2='function exportSave(){if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");let out=rebuild();dl(out,filename.replace(/\\.(sav|srm|dat)$/i,"")+"_PKSG.srm");status.textContent="✅ Export สำเร็จ"}'
+          new2='function exportSave(){if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");try{let out=rebuild();dl(out,filename.replace(/\\.(sav|srm|dat)$/i,"")+"_PKSG.srm");status.textContent="✅ Export สำเร็จ • Save slot สร้างแล้ว"}catch(e){console.error(e);status.textContent="❌ Export ไม่สำเร็จ: "+(e&&e.message?e.message:e);alert("Export ไม่สำเร็จ\\n\\n"+(e&&e.message?e.message:e))}}'
+          if old2 not in s:
+              raise SystemExit('expected export function not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit hotfix and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: make PKSG export robust [skip ci]'
+          git push
