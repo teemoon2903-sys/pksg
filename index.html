@@ -4,15 +4,60 @@
 <script>
 (async function(){
   try {
-    var r=await fetch('https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html?cache='+Date.now(),{cache:'no-store'});
+    var source='https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html';
+    var r=await fetch(source+'?cache='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('โหลด PKSG ต้นฉบับไม่สำเร็จ HTTP '+r.status);
     var html=await r.text();
 
-    // แก้ที่ต้นทางของ exportSave โดยตรง: ถ้าไม่มีการแก้ข้อมูล ให้ส่งออก original แบบ byte-for-byte
+    /* PKSG SAVE FIX: preserve the complete 3968-byte section payload. */
+    var ra=html.indexOf('function rebuild(){');
+    var rb=html.indexOf('function exportSave(){',ra);
+    if(ra<0||rb<0) throw new Error('ไม่พบ Save rebuild/export ของ PKSG ต้นฉบับ');
+    var fixedRebuild=`function rebuild(){
+      const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];
+      for(let i=0;i<14;i++){const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);if(id<14)order.push(id)}
+      if(order.length!==14||new Set(order).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot");
+      const rotated=[order[order.length-1],...order.slice(0,-1)];
+      for(let physical=0;physical<14;physical++){
+        const id=rotated[physical],po=(targetBase+physical)*SECTOR;
+        const meta=slot.ss.find(x=>x.id===id);
+        const size=(meta&&meta.size)||SIZE[id]||DATA;
+        const sourcePhysical=sourceBase+meta.p;
+        const full=bytes.slice(sourcePhysical*SECTOR,sourcePhysical*SECTOR+DATA);
+        const edited=sec(id);
+        full.set(edited.slice(0,Math.min(edited.length,DATA)),0);
+        out.fill(0,po,po+SECTOR);
+        out.set(full,po);
+        w16(out,po+4084,id);
+        w16(out,po+4086,csum(full.slice(0,size)));
+        w32(out,po+4088,SIG);
+        w32(out,po+4092,counter);
+      }
+      return out
+    }
+`;
+    html=html.slice(0,ra)+fixedRebuild+html.slice(rb);
+
     var a=html.indexOf('function exportSave(){');
     var b=html.indexOf('function backup(){',a);
     if(a<0||b<0) throw new Error('ไม่พบฟังก์ชัน Export ของ PKSG ต้นฉบับ');
-    var fixedExport='function exportSave(){if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");try{let same=!!original&&bytes.length===original.length;if(same){for(let i=0;i<bytes.length;i++){if(bytes[i]!==original[i]){same=false;break}}}let out=same?original.slice():rebuild();let ext=(filename.match(/\\.(sav|srm|dat)$/i)||[".srm"])[0];let outName=filename.replace(/\\.(sav|srm|dat)$/i,"")+ext;dl(out,outName);status.textContent=same?"✅ Export สำเร็จ • ใช้เซฟต้นฉบับแบบ byte-for-byte (ยังไม่มีการแก้ไข)":"✅ Export สำเร็จ • สร้าง Save ใหม่จากข้อมูลที่แก้ไขแล้ว"}catch(e){console.error(e);status.textContent="❌ Export ไม่สำเร็จ: "+(e&&e.message?e.message:e);alert("Export ไม่สำเร็จ\\n\\n"+(e&&e.message?e.message:e))}}';
+    var fixedExport=`function exportSave(){
+      if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");
+      try{
+        let same=!!original&&bytes.length===original.length;
+        if(same){for(let i=0;i<bytes.length;i++){if(bytes[i]!==original[i]){same=false;break}}}
+        let out=same?original.slice():rebuild();
+        let ext=(filename.match(/\\.(sav|srm|dat)$/i)||[".srm"])[0];
+        let outName=filename.replace(/\\.(sav|srm|dat)$/i,"")+ext;
+        dl(out,outName);
+        status.textContent=same?"✅ Export สำเร็จ • เซฟเดิมแบบ byte-for-byte":"✅ Export สำเร็จ • สร้าง Save ใหม่โดยรักษาข้อมูล Section ครบ 3968 bytes";
+      }catch(e){
+        console.error(e);
+        status.textContent="❌ Export ไม่สำเร็จ: "+(e&&e.message?e.message:e);
+        alert("Export ไม่สำเร็จ\\n\\n"+(e&&e.message?e.message:e));
+      }
+    }
+`;
     html=html.slice(0,a)+fixedExport+html.slice(b);
 
     document.open();document.write(html);document.close();
