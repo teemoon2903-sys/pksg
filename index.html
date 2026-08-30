@@ -90,10 +90,13 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 .selected-lookup img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
 
 .move-picker-box{border:1px solid #eee;border-radius:12px;padding:8px;background:#fafafa;margin-top:6px}
-.move-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:150px;overflow:auto;margin-top:6px}
+.move-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:150px;overflow:auto;margin-top:6px}
 .move-card{border:1px solid #ddd;border-radius:8px;padding:5px;text-align:center;background:#fff;cursor:pointer;font-size:11px}
 .move-card:hover{background:#eee}
 .move-card.selected{border-color:#111;font-weight:bold;background:#e2e2e2}
+.move-input-row{display:flex;gap:6px;align-items:center;margin-top:4px}
+.move-input-row input[type="number"]{width:90px;padding:6px}
+.move-input-row input[type="text"]{flex:1;padding:6px}
 </style>
 </head>
 <body>
@@ -160,7 +163,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid" style="margin-top:12px">
  <div>
   <label>Species ID</label>
-  <input id="speciesId" type="number" min="1" max="2047" value="937" readonly>
+  <input id="speciesId" type="number" min="1" max="2047" value="323" readonly>
  </div>
 </div>
 
@@ -172,7 +175,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid">
  <div>
   <label>Species ID</label>
-  <input id="newSpecies" type="number" min="1" max="2047" value="937" readonly>
+  <input id="newSpecies" type="number" min="1" max="2047" value="323" readonly>
  </div>
  <div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
  <div><label>Nature</label><select id="newNature"></select></div>
@@ -270,95 +273,86 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <script>
 const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
-// ฐานข้อมูล Master ROM Map ID 1 - 1577 สำหรับค้นหาและแสดงผลในเกม[span_0](start_span)[span_0](end_span)
+// Master Mapping (มาตรฐาน National Dex ID สำหรับการใช้งานพื้นฐาน)
 const MASTER_ROM_POKEMON = [
-  { id: 1, dexId: 1, name: "Bulbasaur", form: "Base" },
-  { id: 2, dexId: 2, name: "Ivysaur", form: "Base" },
-  { id: 3, dexId: 3, name: "Venusaur", form: "Base" },
-  { id: 4, dexId: 4, name: "Charmander", form: "Base" },
-  { id: 5, dexId: 5, name: "Charmeleon", form: "Base" },
-  { id: 6, dexId: 6, name: "Charizard", form: "Base" },
-  { id: 7, dexId: 7, name: "Squirtle", form: "Base" },
-  { id: 8, dexId: 8, name: "Wartortle", form: "Base" },
-  { id: 9, dexId: 9, name: "Blastoise", form: "Base" },
-  { id: 10, dexId: 10, name: "Caterpie", form: "Base" },
-  { id: 25, dexId: 25, name: "Pikachu", form: "Base" },
-  { id: 133, dexId: 133, name: "Eevee", form: "Base" },
-  { id: 150, dexId: 150, name: "Mewtwo", form: "Base" },
-  { id: 151, dexId: 151, name: "Mew", form: "Base" },
-  { id: 252, dexId: 252, name: "Treecko", form: "Base" },
-  { id: 255, dexId: 255, name: "Torchic", form: "Base" },
-  { id: 258, dexId: 258, name: "Mudkip", form: "Base" },
-  { id: 384, dexId: 384, name: "Rayquaza", form: "Base" },
-  { id: 483, dexId: 483, name: "Dialga", form: "Base" },
-  { id: 484, dexId: 484, name: "Palkia", form: "Base" },
-  { id: 487, dexId: 487, name: "Giratina", form: "Base" },
-  { id: 493, dexId: 493, name: "Arceus", form: "Base" },
-  { id: 658, dexId: 658, name: "Greninja", form: "Base" },
-
-  // Mega Evolutions Slot[span_1](start_span)[span_1](end_span)
-  { id: 906, dexId: 3, name: "Venusaur", form: "Mega" },
-  { id: 907, dexId: 6, name: "Charizard", form: "Mega X" },
-  { id: 908, dexId: 6, name: "Charizard", form: "Mega Y" },
-  { id: 909, dexId: 9, name: "Blastoise", form: "Mega" },
-  { id: 919, dexId: 150, name: "Mewtwo", form: "Mega X" },
-  { id: 920, dexId: 150, name: "Mewtwo", form: "Mega Y" },
-  { id: 937, dexId: 323, name: "Camerupt", form: "Mega / Custom Mapping" },
-  { id: 942, dexId: 373, name: "Salamence", form: "Mega" },
-  { id: 943, dexId: 376, name: "Metagross", form: "Mega" },
-  { id: 953, dexId: 384, name: "Rayquaza", form: "Mega" },
-
-  // Regional Forms Slot[span_2](start_span)[span_2](end_span)
-  { id: 956, dexId: 19, name: "Rattata", form: "Alolan" },
-  { id: 958, dexId: 26, name: "Raichu", form: "Alolan" },
-  { id: 974, dexId: 52, name: "Meowth", form: "Galarian" },
-  { id: 982, dexId: 144, name: "Articuno", form: "Galarian" },
-  { id: 993, dexId: 58, name: "Growlithe", form: "Hisuian" },
-  { id: 1003, dexId: 571, name: "Zoroark", form: "Hisuian" },
-
-  // Special Form Slots & Gen 9[span_3](start_span)[span_3](end_span)
-  { id: 1064, dexId: 479, name: "Rotom", form: "Heat" },
-  { id: 1065, dexId: 479, name: "Rotom", form: "Wash" },
-  { id: 1069, dexId: 483, name: "Dialga", form: "Origin" },
-  { id: 1070, dexId: 484, name: "Palkia", form: "Origin" },
-  { id: 1071, dexId: 487, name: "Giratina", form: "Origin" },
-  { id: 1113, dexId: 658, name: "Greninja", form: "Ash-Greninja" },
-  { id: 1400, dexId: 1007, name: "Koraidon", form: "Base" },
-  { id: 1401, dexId: 1008, name: "Miraidon", form: "Base" },
-  { id: 1416, dexId: 1017, name: "Ogerpon", form: "Base" },
-  { id: 1431, dexId: 1024, name: "Terapagos", form: "Normal" },
-  { id: 1432, dexId: 1024, name: "Terapagos", form: "Terastal" },
-  { id: 1433, dexId: 1024, name: "Terapagos", form: "Stellar" },
-
-  // Gigantamax & Legends Z-A Forms[span_4](start_span)[span_4](end_span)
-  { id: 1489, dexId: 3, name: "Venusaur", form: "Gigantamax" },
-  { id: 1491, dexId: 6, name: "Charizard", form: "Gigantamax" },
-  { id: 1524, dexId: 36, name: "Clefable", form: "Mega / Legends Z-A" },
-  { id: 1527, dexId: 149, name: "Dragonite", form: "Mega / Legends Z-A" },
-  { id: 1540, dexId: 658, name: "Greninja", form: "Mega / Legends Z-A" },
-  { id: 1577, dexId: 483, name: "Dialga", form: "Mega / Legends Z-A" }
+  { id: 1, dexId: 1, name: "Bulbasaur" },
+  { id: 2, dexId: 2, name: "Ivysaur" },
+  { id: 3, dexId: 3, name: "Venusaur" },
+  { id: 4, dexId: 4, name: "Charmander" },
+  { id: 5, dexId: 5, name: "Charmeleon" },
+  { id: 6, dexId: 6, name: "Charizard" },
+  { id: 7, dexId: 7, name: "Squirtle" },
+  { id: 8, dexId: 8, name: "Wartortle" },
+  { id: 9, dexId: 9, name: "Blastoise" },
+  { id: 25, dexId: 25, name: "Pikachu" },
+  { id: 133, dexId: 133, name: "Eevee" },
+  { id: 150, dexId: 150, name: "Mewtwo" },
+  { id: 151, dexId: 151, name: "Mew" },
+  { id: 252, dexId: 252, name: "Treecko" },
+  { id: 255, dexId: 255, name: "Torchic" },
+  { id: 258, dexId: 258, name: "Mudkip" },
+  { id: 323, dexId: 323, name: "Camerupt" },
+  { id: 384, dexId: 384, name: "Rayquaza" },
+  { id: 483, dexId: 483, name: "Dialga" },
+  { id: 484, dexId: 484, name: "Palkia" },
+  { id: 487, dexId: 487, name: "Giratina" },
+  { id: 493, dexId: 493, name: "Arceus" },
+  { id: 658, dexId: 658, name: "Greninja" },
+  { id: 937, dexId: 937, name: "Ceruledge" },
+  { id: 1007, dexId: 1007, name: "Koraidon" },
+  { id: 1008, dexId: 1008, name: "Miraidon" }
 ];
 
-// ปรับแต่ง Mapping เฉพาะสำหรับรอมแฮกตัวนี้ (ID 937 ในเซฟ ตรงกับ Camerupt ในเกม)
-const SPECIAL_SPECIES_MAPPING = {
-  937: { dexId: 323, name: "Camerupt" },
-  1401: { dexId: 1008, name: "Miraidon" }
-};
+// Mapping พิเศษสำหรับกรณี Custom ROM Hack ID (รออัปเดตเมื่อได้ txt guide)
+const SPECIAL_SPECIES_MAPPING = {};
 
 const DEX_NAMES={
-323:"Camerupt",
-1401:"Miraidon"
+  323: "Camerupt",
+  937: "Ceruledge",
+  1007: "Koraidon",
+  1008: "Miraidon"
 };
 
+// ขยายรายการท่าต่อสู้ (Moves) ยอดนิยม และรองรับ Custom ID
 const COMMON_MOVES = {
   0: "None (ไม่มีท่า)",
-  33: "Tackle", 85: "Thunderbolt", 53: "Flamethrower", 56: "Hydro Pump",
-  89: "Earthquake", 157: "Rock Slide", 400: "Shadow Ball", 242: "Crunch",
-  412: "Energy Ball", 337: "Dragon Claw", 434: "Draco Meteor", 317: "Rock Tomb",
-  92: "Toxic", 113: "Light Screen", 115: "Reflect", 241: "Sunny Day",
-  258: "Hail", 259: "Rain Dance", 261: "Will-O-Wisp", 370: "Close Combat",
-  371: "Payback", 416: "Giga Impact", 387: "Me First", 399: "Dark Pulse",
-  409: "Drain Punch", 421: "Shadow Claw", 442: "Iron Head", 447: "Grass Knot"
+  1: "Pound", 2: "Karate Chop", 3: "Double Slap", 4: "Comet Punch", 5: "Mega Punch",
+  10: "Scratch", 13: "Razor Wind", 14: "Swords Dance", 15: "Cut", 16: "Gust",
+  17: "Wing Attack", 18: "Whirlwind", 19: "Fly", 20: "Bind", 21: "Slam",
+  22: "Vine Whip", 23: "Stomp", 24: "Double Kick", 25: "Mega Kick", 26: "Jump Kick",
+  28: "Sand Attack", 29: "Headbutt", 33: "Tackle", 34: "Body Slam", 36: "Take Down",
+  38: "Double-Edge", 40: "Poison Sting", 44: "Bite", 45: "Growl", 46: "Roar",
+  52: "Ember", 53: "Flamethrower", 55: "Water Gun", 56: "Hydro Pump", 57: "Surf",
+  58: "Ice Beam", 59: "Blizzard", 60: "Psybeam", 61: "Bubble Beam", 62: "Aurora Beam",
+  63: "Hyper Beam", 64: "Peck", 65: "Drill Peck", 70: "Strength", 71: "Absorb",
+  72: "Mega Drain", 73: "Leech Seed", 74: "Growth", 75: "Razor Leaf", 76: "Solar Beam",
+  77: "Poison Powder", 78: "Stun Spore", 79: "Sleep Powder", 80: "Petal Dance", 84: "Thunder Shock",
+  85: "Thunderbolt", 86: "Thunder Wave", 87: "Thunder", 88: "Rock Throw", 89: "Earthquake",
+  90: "Fissure", 91: "Dig", 92: "Toxic", 93: "Confusion", 94: "Psychic",
+  95: "Hypnosis", 98: "Quick Attack", 99: "Rage", 100: "Teleport", 101: "Night Shade",
+  104: "Screech", 105: "Double Team", 106: "Recover", 107: "Harden", 109: "Confuse Ray",
+  113: "Light Screen", 115: "Reflect", 116: "Focus Energy", 120: "Self-Destruct", 126: "Fire Blast",
+  127: "Waterfall", 129: "Swift", 130: "Skull Bash", 141: "Leech Life", 153: "Explosion",
+  156: "Rest", 157: "Rock Slide", 161: "Tri Attack", 168: "Thief", 173: "Snore",
+  182: "Protect", 184: "Scary Face", 188: "Sludge Bomb", 200: "Outrage", 201: "Sandstorm",
+  202: "Giga Drain", 203: "Endure", 205: "Rollout", 206: "False Swipe", 207: "Swagger",
+  208: "Milk Drink", 209: "Spark", 214: "Sleep Talk", 216: "Return", 218: "Frustration",
+  226: "Baton Touch", 227: "Encore", 228: "Pursuit", 231: "Iron Tail", 232: "Metal Claw",
+  237: "Hidden Power", 241: "Sunny Day", 242: "Crunch", 244: "Psych Up", 247: "Shadow Ball",
+  248: "Future Sight", 249: "Rock Smash", 257: "Heat Wave", 258: "Hail", 259: "Rain Dance",
+  261: "Will-O-Wisp", 263: "Facade", 264: "Focus Punch", 269: "Taunt", 276: "Superpower",
+  280: "Brick Break", 282: "Knock Off", 283: "Endeavor", 284: "Eruption", 299: "Blaze Kick",
+  315: "Overheat", 317: "Rock Tomb", 331: "Bullet Seed", 332: "Aerial Ace", 337: "Dragon Claw",
+  339: "Bulk Up", 340: "Bounce", 347: "Calm Mind", 348: "Leaf Blade", 350: "Rock Blast",
+  358: "Water Pulse", 359: "Hammer Arm", 360: "Gyro Ball", 370: "Close Combat", 371: "Payback",
+  374: "Fling", 387: "Me First", 394: "Flare Blitz", 396: "Aura Sphere", 398: "Poison Jab",
+  399: "Dark Pulse", 400: "Night Slash", 401: "Aqua Tail", 403: "Air Slash", 404: "X-Scissor",
+  405: "Bug Buzz", 406: "Dragon Pulse", 408: "Power Gem", 409: "Drain Punch", 411: "Focus Blast",
+  412: "Energy Ball", 413: "Brave Bird", 414: "Earth Power", 416: "Giga Impact", 417: "Nasty Plot",
+  418: "Bullet Punch", 421: "Shadow Claw", 422: "Thunder Fang", 423: "Ice Fang", 424: "Fire Fang",
+  428: "Zen Headbutt", 430: "Flash Cannon", 434: "Draco Meteor", 437: "V-create", 442: "Iron Head",
+  444: "Stone Edge", 447: "Grass Knot", 464: "Dark Void", 523: "Wild Charge", 525: "Dragon Dance",
+  534: "Scald", 620: "Dragon Ascent", 849: "Collision Course", 850: "Electro Drift", 874: "Make It Rain"
 };
 
 const POKEMON_API_MAX=1025;
@@ -548,9 +542,12 @@ function renderMovePickers(currentMoves){
   let box = document.createElement("div");
   box.className = "move-picker-box";
   box.innerHTML = `
-   <label>ท่าที่ ${i+1} (ID: <span id="mvIdText${i}">${currentMoves[i]}</span>)</label>
-   <input type="hidden" id="mv${i}" value="${currentMoves[i]}">
-   <input type="text" id="moveSearch${i}" placeholder="พิมพ์ค้นหาชื่อท่า..." style="margin-top:4px">
+   <label>ท่าที่ ${i+1}</label>
+   <div class="move-input-row">
+    <span>ID:</span>
+    <input type="number" id="mv${i}" value="${currentMoves[i]}" min="0" max="2047">
+    <input type="text" id="moveSearch${i}" placeholder="ค้นชื่อท่า...">
+   </div>
    <div class="move-grid" id="moveGrid${i}"></div>
   `;
   container.appendChild(box);
@@ -562,7 +559,6 @@ function setupMovePicker(index, selectedId){
  const searchInput = document.getElementById("moveSearch"+index);
  const grid = document.getElementById("moveGrid"+index);
  const hiddenInput = document.getElementById("mv"+index);
- const idText = document.getElementById("mvIdText"+index);
 
  function renderGrid(filter){
   grid.innerHTML = "";
@@ -575,7 +571,6 @@ function setupMovePicker(index, selectedId){
    card.innerHTML = `<b>${name}</b><small>ID: ${id}</small>`;
    card.onclick = () => {
     hiddenInput.value = id;
-    idText.textContent = id;
     grid.querySelectorAll(".move-card").forEach(c=>c.classList.remove("selected"));
     card.classList.add("selected");
    };
@@ -584,6 +579,7 @@ function setupMovePicker(index, selectedId){
  }
  renderGrid("");
  searchInput.oninput = (e) => renderGrid(e.target.value);
+ hiddenInput.oninput = () => renderGrid(searchInput.value);
 }
 
 function closeEditor(){document.getElementById("editor").classList.remove("show")}
@@ -842,30 +838,13 @@ function validateSave(){
  document.getElementById("status").textContent=msg;
 }
 
-async function loadPokemonList(){
-  // โหลดรายชื่อเริ่มต้นจาก Master ROM Map
+function loadPokemonList(){
   pokemonList = MASTER_ROM_POKEMON.map(p => ({
     id: p.id,
     dexId: p.dexId,
     name: p.name,
     form: p.form || "Base"
   }));
-
-  try{
-    const res=await fetch("https://pokeapi.co/api/v2/pokemon?limit="+POKEMON_API_MAX);
-    if(res.ok){
-      const data=await res.json();
-      data.results.forEach((p, index) => {
-        const id = index + 1;
-        if (!pokemonList.some(item => item.id === id)) {
-          pokemonList.push({ id: id, dexId: id, name: p.name, form: "Base" });
-        }
-      });
-    }
-  }catch(e){
-    // ใช้ข้อมูลจาก Master ROM Map อัตโนมัติเมื่อออฟไลน์
-  }
-
   pokemonList.sort((a,b) => a.id - b.id);
   renderPokemonPicker();
   renderEditorPokemonPicker();
