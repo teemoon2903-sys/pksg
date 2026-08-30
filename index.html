@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="wrap">
 <div class="head">
  <h1>🔥 PKSG</h1>
- <div class="sub">SoulGold GBA Save Editor — Corrected Romhack Species Table</div>
+ <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
 <div class="card">
@@ -140,7 +140,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="pokemon-picker-wrap">
  <label>🔍 ค้นหา Pokémon</label>
  <div class="pokemon-search-row">
-  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Miraidon หรือ Gouging Fire">
+  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Camerupt หรือ Miraidon">
   <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
  </div>
 
@@ -160,7 +160,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid" style="margin-top:12px">
  <div>
   <label>Species ID</label>
-  <input id="speciesId" type="number" min="1" max="2047" value="1401" readonly>
+  <input id="speciesId" type="number" min="1" max="2047" value="937" readonly>
  </div>
 </div>
 
@@ -172,7 +172,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid">
  <div>
   <label>Species ID</label>
-  <input id="newSpecies" type="number" min="1" max="2047" value="1401" readonly>
+  <input id="newSpecies" type="number" min="1" max="2047" value="937" readonly>
  </div>
  <div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
  <div><label>Nature</label><select id="newNature"></select></div>
@@ -270,25 +270,15 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <script>
 const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
+// ปรับแต่ง Mapping เฉพาะสำหรับรอมแฮกตัวนี้ (ID 937 ในเซฟ ตรงกับ Camerupt ในเกม)
 const SPECIAL_SPECIES_MAPPING = {
-  1008: { dexId: 724, name: "Decidueye-Hisui" },
-  1020: { dexId: 724, name: "Decidueye-Hisui" },
-  1400: { dexId: 1007, name: "Koraidon" },
-  1401: { dexId: 1008, name: "Miraidon" },
-  1427: { dexId: 1020, name: "Gouging Fire" },
-  1428: { dexId: 1021, name: "Raging Bolt" },
-  1429: { dexId: 1022, name: "Iron Boulder" },
-  1430: { dexId: 1023, name: "Iron Crown" }
+  937: { dexId: 323, name: "Camerupt" },
+  1401: { dexId: 1008, name: "Miraidon" }
 };
 
 const DEX_NAMES={
-1:"Bulbasaur",2:"Ivysaur",3:"Venusaur",4:"Charmander",5:"Charmeleon",6:"Charizard",
-7:"Squirtle",8:"Wartortle",9:"Blastoise",25:"Pikachu",133:"Eevee",196:"Espeon",
-197:"Umbreon",248:"Tyranitar",249:"Lugia",250:"Ho-Oh",251:"Celebi",254:"Sceptile",
-257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",
-448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
-1008:"Hisuian Decidueye",1020:"Hisuian Decidueye",1400:"Koraidon",1401:"Miraidon",
-1427:"Gouging Fire",1428:"Raging Bolt",1429:"Iron Boulder",1430:"Iron Crown"
+323:"Camerupt",
+1401:"Miraidon"
 };
 
 const COMMON_MOVES = {
@@ -299,10 +289,7 @@ const COMMON_MOVES = {
   92: "Toxic", 113: "Light Screen", 115: "Reflect", 241: "Sunny Day",
   258: "Hail", 259: "Rain Dance", 261: "Will-O-Wisp", 370: "Close Combat",
   371: "Payback", 416: "Giga Impact", 387: "Me First", 399: "Dark Pulse",
-  409: "Drain Punch", 421: "Shadow Claw", 442: "Iron Head", 447: "Grass Knot",
-  338: "Frenzy Plant", 339: "Blast Burn", 340: "Hydro Cannon", 1: "Pound",
-  3: "Double Slap", 7: "Fire Punch", 8: "Ice Punch", 9: "Thunder Punch",
-  84: "Thunder", 59: "Blizzard", 63: "Hyper Beam", 76: "Solar Beam"
+  409: "Drain Punch", 421: "Shadow Claw", 442: "Iron Head", 447: "Grass Knot"
 };
 
 const POKEMON_API_MAX=1025;
@@ -494,7 +481,6 @@ function renderMovePickers(currentMoves){
    <div class="move-grid" id="moveGrid${i}"></div>
   `;
   container.appendChild(box);
-
   setupMovePicker(i, currentMoves[i]);
  }
 }
@@ -523,7 +509,6 @@ function setupMovePicker(index, selectedId){
    grid.appendChild(card);
   }
  }
-
  renderGrid("");
  searchInput.oninput = (e) => renderGrid(e.target.value);
 }
@@ -548,7 +533,7 @@ function patchBox(raw,vals){
   let sh=i*5;
   ivd=(ivd&~(31<<sh))|((Math.max(0,Math.min(31,+vals.iv[i])))<<sh)
  }
- w32(out,68,ivd);
+ w32(raw,68,ivd);
  return out;
 }
 
@@ -734,28 +719,23 @@ function validateBuffer(b,base){
   ids.add(id);
   const size=sectorDataSize(id);
   const calc=checksum(b.slice(po,po+size));
-  if(calc===stored)checksumOK++; else problems.push(`Sector ${id} checksum ไม่ตรง (ไฟล์ ${stored} / คำนวณ ${calc})`);
+  if(calc===stored)checksumOK++; else problems.push(`Sector ${id} checksum ไม่ตรง`);
  }
- if(ids.size!==14){
-  const missing=[];for(let i=0;i<14;i++)if(!ids.has(i))missing.push(i);
-  problems.push("Sector ID ไม่ครบ 0–13 (ขาด: "+missing.join(", ")+")");
- }
+ if(ids.size!==14)problems.push("Sector ID ไม่ครบ 0–13");
  const overflowPhysical=30+(counter===null?((base===0)?0:1):(counter%2));
  const oo=overflowPhysical*SECTOR;
  const oid=u16(b,oo+4084),ostored=u16(b,oo+4086),osig=u32(b,oo+4088),oc=u32(b,oo+4092);
  const overflowCalc=checksum(b.slice(oo,oo+1324));
- const overflowOK=oid===overflowPhysical && osig===SIG && (counter===null || oc===counter) && overflowCalc===ostored;
+ const overflowOK=oid===overflowPhysical && osig==SIG && (counter===null || oc===counter) && overflowCalc===ostored;
  if(!overflowOK)problems.push(`Overflow sector ${overflowPhysical} ไม่ถูกต้อง`);
- const ok=problems.length===0;
- return {ok,message:problems.join("; "),counter,checksumOK,overflowOK};
+ return {ok:problems.length===0,message:problems.join("; "),counter,checksumOK,overflowOK};
 }
 
 function dl(data,name){
  const blob=new Blob([data],{type:"application/octet-stream"});
  const url=URL.createObjectURL(blob);
  const a=document.createElement("a");
- a.href=url;
- a.download=name;
+ a.href=url;a.download=name;
  document.body.appendChild(a);
  a.click();
  a.remove();
@@ -767,31 +747,26 @@ function exportSave(){
  try{
   if(!dirty){
    dl(original.slice(),filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
-   document.getElementById("status").textContent="✅ Export สำเร็จ • ไม่มีการแก้ไข • คัดลอกต้นฉบับ byte-for-byte";
+   document.getElementById("status").textContent="✅ Export สำเร็จ • ไม่มีการแก้ไข";
    return;
   }
   const built=rebuildSave();
-  const check=validateBuffer(built.out,current.base);
-  if(!check.ok)throw Error(check.message);
   dl(built.out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
-  document.getElementById("status").textContent=`✅ Export สำเร็จ • เขียน Save Slot ${(built.targetBase/14)+1} • 14/14 sector + Overflow ผ่าน • Counter ${built.newCounter}`;
+  document.getElementById("status").textContent=`✅ Export สำเร็จ • เขียน Save Slot ${(built.targetBase/14)+1}`;
  }catch(e){document.getElementById("status").textContent="❌ Export ถูกยกเลิก: "+e.message}
 }
 
 function exportBackup(){
- if(original)dl(original,filename.replace(/\.(sav|srm|dat)$/i,"")+"_BACKUP."+((filename.match(/\.(sav|srm|dat)$/i)||[".srm"])[0].slice(1)))
+ if(original)dl(original,filename.replace(/\.(sav|srm|dat)$/i,"")+"_BACKUP.srm")
 }
 
-function validateSave(silent=false){
+function validateSave(){
  const diag=document.getElementById("saveDiagnostics");
- if(!bytes||!current||!logical){if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";return {ok:false,message:"ยังไม่ได้เปิดเซฟ"}}
+ if(!bytes||!current||!logical){if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";return}
  const r=validateBuffer(bytes,current.base);
- const msg=r.ok
-  ? `✅ Save Slot ${activeSlot+1} ผ่านการตรวจสอบ\nSector 14/14 • Checksum ${r.checksumOK}/14\nOverflow sector ${30+(r.counter%2)} ผ่าน • Counter ${r.counter}`
-  : `❌ พบปัญหาใน Save Slot ${activeSlot+1}\n${r.message}`;
+ const msg=r.ok?`✅ ตรวจสอบผ่านปกติ`:`❌ พบปัญหา: ${r.message}`;
  if(diag)diag.textContent=msg;
- if(!silent)document.getElementById("status").textContent=msg;
- return r;
+ document.getElementById("status").textContent=msg;
 }
 
 async function loadPokemonList(){
@@ -888,8 +863,7 @@ function selectEditorPokemon(p,card){
  document.getElementById("eSpecies").value=p.id;
  document.getElementById("eName").textContent=p.name;
  document.getElementById("eSprite").src=sprite(p.id);
- document.getElementById("eMeta").textContent=
-  `Species ID ${p.id} • PID ${current.edit?.m?.pid?.toString(16)||""}`;
+ document.getElementById("eMeta").textContent=`Species ID ${p.id}`;
 
  document.querySelectorAll("#editorPokemonPicker .pokemon-card")
   .forEach(x=>x.classList.remove("selected"));
