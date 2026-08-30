@@ -1,35 +1,7 @@
-name: PKSG UI fix
-on: push
-permissions:
-  contents: write
+name: PKSG UI test
+on: [push]
 jobs:
-  patch:
-    if: github.event.head_commit.message == 'trigger: run UI patch'
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Patch index.html
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html')
-          s=p.read_text()
-          sprite='''function spriteCandidates(e){if(!e)return[];let id=+e.id,slug=(e.slug||e.name||"").toLowerCase(),out=[];if(id>0&&id<=1025){out.push("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/"+id+".png");out.push("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+id+".png")}out.push(SPRITE_RAW+slug+"/icon.png");let m=slug.match(/^(.+?)-(mega(?:-[a-z])?|gmax|alola|galar|hisui|paldea)$/);if(m)out.push(SPRITE_RAW+m[1]+"/"+m[2].replaceAll("-","_")+"/icon.png");let parts=slug.split("-");if(parts.length>1)out.push(SPRITE_RAW+parts[0]+"/"+parts.slice(1).join("_")+"/icon.png");return[...new Set(out)]}'''
-          s,n=re.subn(r'function spriteCandidates\(e\)\{.*?\}(?=function setImg)',sprite,s,count=1)
-          if n!=1: raise SystemExit('sprite function not found')
-          editor='''function ensureEditorFields(){if(!document.getElementById("iv0")){iv.innerHTML=STAT.map((n,i)=>`<label class="field">${n}<input id="iv${i}" type="number" min="0" max="31" value="0"></label>`).join("")}if(!document.getElementById("ev0")){ev.innerHTML=STAT.map((n,i)=>`<label class="field">${n}<input id="ev${i}" type="number" min="0" max="252" value="0"></label>`).join("")}if(!document.getElementById("mv0")){mv.innerHTML=[0,1,2,3].map(i=>`<label class="field">Move ${i+1}<input id="mv${i}" type="number" min="0" max="2047" value="0"></label>`).join("")}}
-function openEditor(where,i){ensureEditorFields();let off=where==="party"?0x238+i*100:4+(+box.value*SLOTS+i)*80,raw=where==="party"?sec(1).slice(off,off+100):pcRead(off,80),m=readMon(raw,where==="party");edit={where,i,off,raw,m};eSpecies.value=m.species;eLevel.value=m.level;eNature.value=m.nature;eItem.value=m.item;eShiny.value=m.shiny;let e=speciesById.get(m.species);if(e){editPokemonSearch.value=speciesLabel(e);renderPicker("editPokemonSearch","editPokemonResults","eSpecies","editPokemon");setImg(es,e)}else{editPokemonSearch.value="";editPokemonResults.innerHTML='<div class="picker-empty">ไม่พบ Species ใน Pokédex SoulGold</div>';es.removeAttribute("src")}m.iv.forEach((v,j)=>document.getElementById("iv"+j).value=v);m.ev.forEach((v,j)=>document.getElementById("ev"+j).value=v);m.moves.forEach((v,j)=>document.getElementById("mv"+j).value=v);en.textContent=pname(m.species);em.textContent=`Species ${m.species} • PID ${m.pid.toString(16)}`;editor.classList.add("show")}
-'''
-          s,n=re.subn(r'function openEditor\(where,i\)\{.*?\}(?=function closeEditor)',editor,s,count=1)
-          if n!=1: raise SystemExit('editor function not found')
-          s=s.replace('.sprite{width:82px;height:82px;object-fit:contain;display:block;margin:auto}', '.sprite{width:82px;height:82px;object-fit:contain;display:block;margin:auto;padding:4px}.pokeCard .sprite{background:transparent}')
-          p.write_text(s)
-          PY
-      - name: Commit patch
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html
-          git commit -m 'fix: pokemon sprites and editor UI' || exit 0
-          git push
+      - run: echo PKSG_WORKFLOW_OK
