@@ -241,13 +241,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
  <div>
  <label>🎒 Held Item</label>
- <input id="eItem" type="number" min="0" max="1023" readonly>
- <div class="selected-lookup" id="selectedHeldItem" hidden>
-  <img id="selectedHeldItemImg">
-  <div><b id="selectedHeldItemName"></b><div class="small">Item ID: <span id="selectedHeldItemId"></span></div></div>
- </div>
- <input id="heldItemSearch" type="text" placeholder="ค้นหาไอเทม..." style="margin-top:6px">
- <div id="heldItemPicker" class="lookup-grid" style="max-height:180px"></div>
+ <input id="eItem" type="number" min="0" max="1023" value="0">
 </div>
  <div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
 </div>
@@ -273,7 +267,14 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 </div>
 
 <h3 style="margin-top:14px">⚔️ Moves</h3>
-<div id="movePickers"></div>
+<div id="movePickers">
+ <div class="grid">
+  <div><label>Move 1 ID</label><input id="mv0" type="number" min="0" max="2047" value="0"></div>
+  <div><label>Move 2 ID</label><input id="mv1" type="number" min="0" max="2047" value="0"></div>
+  <div><label>Move 3 ID</label><input id="mv2" type="number" min="0" max="2047" value="0"></div>
+  <div><label>Move 4 ID</label><input id="mv3" type="number" min="0" max="2047" value="0"></div>
+ </div>
+</div>
 
 <div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
 </div>
@@ -284,11 +285,8 @@ const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Rel
 
 /* Pokeemerald-expansion ID Mappings for Hisui and Gen 9 */
 const SPECIAL_SPECIES_MAPPING = {
-  // Hisui Forms
   1008: { dexId: 724, name: "Decidueye-Hisui" },
   1020: { dexId: 724, name: "Decidueye-Hisui" },
-  
-  // Gen 9 Legendaries & Paradox
   1400: { dexId: 1007, name: "Koraidon" },
   1401: { dexId: 1008, name: "Miraidon" },
   1427: { dexId: 1020, name: "Gouging Fire" },
@@ -496,7 +494,7 @@ function patchBox(raw,vals){
   let o=44+k*2;w16(out,o,w16v(u16(out,o),0,11,+vals.moves[k]))
  }
  vals.ev.forEach((v,i)=>out[56+i]=Math.max(0,Math.min(255,+v)));
- let ivd=u32(out,68);
+ let ivd=u32(raw,68);
  for(let i=0;i<6;i++){
   let sh=i*5;
   ivd=(ivd&~(31<<sh))|((Math.max(0,Math.min(31,+vals.iv[i])))<<sh)
