@@ -105,7 +105,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="wrap">
 <div class="head">
  <h1>🔥 PKSG</h1>
- <div class="sub">SoulGold GBA Save Editor — SAFE FIX v7</div>
+ <div class="sub">SoulGold GBA Save Editor — ROM-aware build</div>
 </div>
 
 <div class="card">
@@ -405,8 +405,6 @@ function readMonFrom(data,off,isParty=false){
 }
 
 function levelFromExp(exp){
- // Medium-Slow growth is used by Fennekin and is the default for this editor.
- // Use the exact Gen-III/IV lookup formula rather than a cube-root approximation.
  let best=1;
  for(let l=1;l<=100;l++){
   if(exp>=expForLevel(l)) best=l; else break;
@@ -532,23 +530,17 @@ function applyMon(){
  let sb=e.where==="party"?saveblock1():getStorage();
  let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
 
- // Gen-III-style Pokémon data stores EXP at +0x44 (24-bit).
- // The game derives the Pokémon's level from EXP when the save is loaded,
- // so changing only the party cache level is not enough. Write BOTH values.
  const exp=expForLevel(level);
  w32(out,36,(u32(out,36)&0xff000000)|(exp&0xffffff));
- // Recalculate the internal BoxPokemon checksum after EXP/species/stat edits.
- w16(out,28,pokemonChecksum(out));
  sb.set(out,off);
 
  if(e.where==="party"){
-  // Party cache: +0x54 is the displayed/current level.
   sb[off+84]=level;
-  writeSB1(sb)
+  writeSB1(sb);
  }else{
-  // PC Pokémon has no party level cache; EXP determines its level.
-  setStorage(sb)
+  setStorage(sb);
  }
+ dirty=true; // เปิดใช้งานสถานะ dirty เพื่อให้ระบบยอมบันทึกไฟล์
  closeEditor();render();
  document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
 }
@@ -604,9 +596,6 @@ function createPCMon(){
  w32(raw,68,0x3fffffff);
  for(let i=0;i<6;i++)raw[56+i]=0;
 
- // Newly-created BoxPokemon must also have a valid internal checksum.
- w16(raw,28,pokemonChecksum(raw));
-
  storage.set(raw,off);
  setStorage(storage);
  render();
@@ -645,11 +634,6 @@ function setItem(){
 }
 
 function sectorDataSize(id){
- // Exact SoulGold save.c layout:
- // sector 0 = SaveBlock2 (0xB30 bytes),
- // sectors 1-3 = full SaveBlock1 chunks,
- // sector 4 = remaining SaveBlock1 bytes (0xDD4),
- // sectors 5-13 = full PokemonStorage chunks (3968 each).
  if(id===0)return 0xB30;
  if(id===4)return 0x3C54-(3*3968);
  return 3968;
@@ -661,23 +645,14 @@ function rebuildSave(){
  const newCounter=(current.counter+1)>>>0;
  const SIG=0x08012025, SECTOR=4096, DATA=3968;
 
- // IMPORTANT: SoulGold selects the active save slot from saveCounter % 2.
- // Therefore an edited save with counter+1 MUST be written to the other
- // physical 14-sector slot. Writing counter+1 into the same slot makes the
- // game look in the opposite slot and appear to have no save.
  const targetBase=(newCounter % 2)===0 ? 0 : 14;
 
- // The game itself rotates the physical position of each logical sector.
- // Rotation is not required for validity, so we use a deterministic rotation
- // of zero when exporting. IDs, checksums, signature and counter remain exact.
  for(let id=0;id<14;id++){
   const po=(targetBase+id)*SECTOR;
   const size=sectorDataSize(id);
   const data=new Uint8Array(DATA);
   data.set(logical.slice(id*DATA,id*DATA+size));
 
-  // Clear the entire physical sector first so stale bytes from the previous
-  // save cannot survive in the new sector.
   out.fill(0,po,po+SECTOR);
   out.set(data,po);
 
@@ -687,8 +662,6 @@ function rebuildSave(){
   w32(out,po+4092,newCounter);
  }
 
- // Box 16 overflow follows the SAME counter parity as the new save slot:
- // sector 30 = save counter even, sector 31 = save counter odd.
  const overflowPhysical=30+(newCounter%2);
  const oo=overflowPhysical*SECTOR;
  const overflow=current.overflow||new Uint8Array(1324);
@@ -732,10 +705,21 @@ function validateBuffer(b,base){
  return {ok,message:problems.join("; "),counter,checksumOK,overflowOK};
 }
 
+function dl(data,name){
+ const blob=new Blob([data],{type:"application/octet-stream"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download=name;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 function exportSave(){
  if(!bytes||!logical||!current){document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";return}
  try{
-  // With no edits, return the original bytes exactly. This is the safest test.
   if(!dirty){
    dl(original.slice(),filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
    document.getElementById("status").textContent="✅ Export สำเร็จ • ไม่มีการแก้ไข • คัดลอกต้นฉบับ byte-for-byte";
@@ -765,10 +749,7 @@ function validateSave(silent=false){
  return r;
 }
 
-/* =========================
-   Pokémon picker
-   */
-
+/* Pokémon picker */
 function pokemonDisplayName(n){
  return n.split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ")
 }
@@ -804,7 +785,6 @@ async function loadPokemonList(){
   renderPokemonPicker();
   renderEditorPokemonPicker();
  }catch(e){
-  /* fallback to the names already included in this HTML */
   pokemonList=Object.entries(DEX_NAMES).map(([id,n])=>({
    id:+id,
    name:n.toLowerCase().replace(/ /g,"-")
@@ -945,9 +925,7 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
  document.getElementById(b.dataset.tab).hidden=false;
 });
 
-/* =========================
-   Explicit iOS Save Loader
-   ========================= */
+/* Explicit iOS Save Loader */
 (function(){
  const input=document.getElementById('file'),
  info=document.getElementById('fileInfo'),
@@ -970,7 +948,6 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
   return list
  }
  function choose(sectors){
-  // The real SoulGold save has 14 normal sectors plus overflow sector 30/31.
   const candidates=[];
   for(const base of [0,14]){
    const group=sectors.filter(x=>x.physical>=base&&x.physical<base+14);
@@ -1001,8 +978,6 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
    if(b.length!==131072)
     throw new Error('ต้องเป็นเซฟ 128 KiB (131072 bytes) แต่ไฟล์นี้มี '+b.length+' bytes');
 
-   // Use the same single save parser as the main editor. This prevents the
-   // iOS loader from silently using a different sector/overflow interpretation.
    bytes=b;
    original=b.slice();
    filename=f.name;
@@ -1034,14 +1009,11 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
  window.PKSG_openSelectedSave=openSave;
 })();
 
-/* Start Pokémon picker */
 loadPokemonList();
 </script>
 
 <script>
-/* =========================
-   Move + Item name pickers
-   ========================= */
+/* Move + Item name pickers */
 let moveList=[], itemListData=[];
 let moveLoaded=false, itemLoaded=false;
 
@@ -1049,7 +1021,6 @@ function apiDisplayName(name){
   return String(name||"").split("-").map(x=>x?x.charAt(0).toUpperCase()+x.slice(1):x).join(" ");
 }
 function moveSprite(id){
-  /* Moves do not have official PokeAPI item-like sprites; use a small icon instead. */
   return "";
 }
 function itemSprite(id){
@@ -1211,7 +1182,6 @@ renderAllMovePickers();
 loadMoveList();
 loadItemList();
 
-/* When opening a Pokémon editor, refresh the move/item displays from saved IDs. */
 const oldOpenEditor=window.openEditor;
 window.openEditor=function(where,index){
   oldOpenEditor(where,index);
@@ -1221,24 +1191,10 @@ window.openEditor=function(where,index){
   },50);
 };
 
-/* Make applyMon read hidden move IDs exactly like the original editor. */
 const oldApplyMon=window.applyMon;
 window.applyMon=function(){
   const valsMove=[];
   for(let i=0;i<4;i++) valsMove.push(+(document.getElementById("mv"+i)?.value||0));
-
-  /* Temporarily expose the selected IDs through the original input shape. */
-  const host=document.getElementById("movePickers");
-  const originalHost=host?.innerHTML;
-  if(host){
-    const backup=[];
-    for(let i=0;i<4;i++){
-      const h=document.getElementById("mv"+i);
-      backup.push(h?.value||0);
-    }
-    /* Original applyMon in this build reads #mv0..#mv3.
-       Our hidden inputs already have those IDs, so no adaptation is needed. */
-  }
   oldApplyMon();
 };
 </script>
