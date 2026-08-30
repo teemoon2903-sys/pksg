@@ -88,15 +88,12 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 .lookup-card small{display:block;color:#777}
 .selected-lookup{display:flex;align-items:center;gap:10px;margin-top:7px;padding:7px 9px;border-radius:10px;background:#f3f3f3}
 .selected-lookup img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
-.move-picker{margin-top:7px}
-.move-picker-row{display:flex;gap:8px;align-items:center}
-.move-picker-row input[type=text]{flex:1}
-.move-picker-row button{padding:9px 11px}
-.move-picker-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:7px;margin-top:7px;max-height:220px;overflow:auto}
-.move-card{border:2px solid transparent;border-radius:11px;padding:6px;text-align:center;background:#fafafa;cursor:pointer}
-.move-card.selected{border-color:#111;background:#eee}
-.move-card b{display:block;font-size:11px;line-height:1.15}
-.move-card small{color:#777}
+
+.move-picker-box{border:1px solid #eee;border-radius:12px;padding:8px;background:#fafafa;margin-top:6px}
+.move-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:150px;overflow:auto;margin-top:6px}
+.move-card{border:1px solid #ddd;border-radius:8px;padding:5px;text-align:center;background:#fff;cursor:pointer;font-size:11px}
+.move-card:hover{background:#eee}
+.move-card.selected{border-color:#111;font-weight:bold;background:#e2e2e2}
 </style>
 </head>
 <body>
@@ -239,10 +236,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
  <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
- <div>
- <label>🎒 Held Item</label>
- <input id="eItem" type="number" min="0" max="1023" value="0">
-</div>
+ <div><label>🎒 Held Item</label><input id="eItem" type="number" min="0" max="1023" value="0"></div>
  <div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
 </div>
 
@@ -266,15 +260,8 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <label>SpD<input id="ev5" type="number" min="0" max="252" value="0"></label>
 </div>
 
-<h3 style="margin-top:14px">⚔️ Moves</h3>
-<div id="movePickers">
- <div class="grid">
-  <div><label>Move 1 ID</label><input id="mv0" type="number" min="0" max="2047" value="0"></div>
-  <div><label>Move 2 ID</label><input id="mv1" type="number" min="0" max="2047" value="0"></div>
-  <div><label>Move 3 ID</label><input id="mv2" type="number" min="0" max="2047" value="0"></div>
-  <div><label>Move 4 ID</label><input id="mv3" type="number" min="0" max="2047" value="0"></div>
- </div>
-</div>
+<h3 style="margin-top:14px">⚔️ Moves (เลือกท่าต่อสู้)</h3>
+<div id="movePickersContainer"></div>
 
 <div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
 </div>
@@ -283,7 +270,6 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <script>
 const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
-/* Pokeemerald-expansion ID Mappings for Hisui and Gen 9 */
 const SPECIAL_SPECIES_MAPPING = {
   1008: { dexId: 724, name: "Decidueye-Hisui" },
   1020: { dexId: 724, name: "Decidueye-Hisui" },
@@ -303,6 +289,20 @@ const DEX_NAMES={
 448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
 1008:"Hisuian Decidueye",1020:"Hisuian Decidueye",1400:"Koraidon",1401:"Miraidon",
 1427:"Gouging Fire",1428:"Raging Bolt",1429:"Iron Boulder",1430:"Iron Crown"
+};
+
+const COMMON_MOVES = {
+  0: "None (ไม่มีท่า)",
+  33: "Tackle", 85: "Thunderbolt", 53: "Flamethrower", 56: "Hydro Pump",
+  89: "Earthquake", 157: "Rock Slide", 400: "Shadow Ball", 242: "Crunch",
+  412: "Energy Ball", 337: "Dragon Claw", 434: "Draco Meteor", 317: "Rock Tomb",
+  92: "Toxic", 113: "Light Screen", 115: "Reflect", 241: "Sunny Day",
+  258: "Hail", 259: "Rain Dance", 261: "Will-O-Wisp", 370: "Close Combat",
+  371: "Payback", 416: "Giga Impact", 387: "Me First", 399: "Dark Pulse",
+  409: "Drain Punch", 421: "Shadow Claw", 442: "Iron Head", 447: "Grass Knot",
+  338: "Frenzy Plant", 339: "Blast Burn", 340: "Hydro Cannon", 1: "Pound",
+  3: "Double Slap", 7: "Fire Punch", 8: "Ice Punch", 9: "Thunder Punch",
+  84: "Thunder", 59: "Blizzard", 63: "Hyper Beam", 76: "Solar Beam"
 };
 
 const POKEMON_API_MAX=1025;
@@ -470,13 +470,62 @@ function openEditor(where,index){
  document.getElementById("eShiny").value=m.shiny;
  m.iv.forEach((v,i)=>document.getElementById("iv"+i).value=v);
  m.ev.forEach((v,i)=>document.getElementById("ev"+i).value=v);
- m.moves.forEach((v,i)=>document.getElementById("mv"+i).value=v);
+ 
+ renderMovePickers(m.moves);
+
  document.getElementById("eName").textContent=name(m.species);
  document.getElementById("eMeta").textContent=`Species ID ${m.species} • PID ${m.pid.toString(16)}`;
  document.getElementById("eSprite").src=sprite(m.species);
  document.getElementById("editorPokemonSearch").value="";
  renderEditorPokemonPicker();
  document.getElementById("editor").classList.add("show");
+}
+
+function renderMovePickers(currentMoves){
+ const container = document.getElementById("movePickersContainer");
+ container.innerHTML = "";
+ for(let i=0; i<4; i++){
+  let box = document.createElement("div");
+  box.className = "move-picker-box";
+  box.innerHTML = `
+   <label>ท่าที่ ${i+1} (ID: <span id="mvIdText${i}">${currentMoves[i]}</span>)</label>
+   <input type="hidden" id="mv${i}" value="${currentMoves[i]}">
+   <input type="text" id="moveSearch${i}" placeholder="พิมพ์ค้นหาชื่อท่า..." style="margin-top:4px">
+   <div class="move-grid" id="moveGrid${i}"></div>
+  `;
+  container.appendChild(box);
+
+  setupMovePicker(i, currentMoves[i]);
+ }
+}
+
+function setupMovePicker(index, selectedId){
+ const searchInput = document.getElementById("moveSearch"+index);
+ const grid = document.getElementById("moveGrid"+index);
+ const hiddenInput = document.getElementById("mv"+index);
+ const idText = document.getElementById("mvIdText"+index);
+
+ function renderGrid(filter){
+  grid.innerHTML = "";
+  const f = (filter||"").toLowerCase();
+  for(const [idStr, name] of Object.entries(COMMON_MOVES)){
+   const id = +idStr;
+   if(f && !name.toLowerCase().includes(f) && !idStr.includes(f)) continue;
+   let card = document.createElement("div");
+   card.className = "move-card"+(hiddenInput.value == id ? " selected" : "");
+   card.innerHTML = `<b>${name}</b><small>ID: ${id}</small>`;
+   card.onclick = () => {
+    hiddenInput.value = id;
+    idText.textContent = id;
+    grid.querySelectorAll(".move-card").forEach(c=>c.classList.remove("selected"));
+    card.classList.add("selected");
+   };
+   grid.appendChild(card);
+  }
+ }
+
+ renderGrid("");
+ searchInput.oninput = (e) => renderGrid(e.target.value);
 }
 
 function closeEditor(){document.getElementById("editor").classList.remove("show")}
