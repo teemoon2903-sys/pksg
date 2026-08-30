@@ -1,17 +1,14 @@
 name: PKSG UI fix
-on:
-  push:
-    paths:
-      - '.github/pksg-ui-patch.trigger'
+on: push
 permissions:
   contents: write
 jobs:
   patch:
+    if: github.event.head_commit.message == 'trigger: run UI patch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Patch index.html
-        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -31,9 +28,8 @@ function openEditor(where,i){ensureEditorFields();let off=where==="party"?0x238+
           PY
       - name: Commit patch
         run: |
-          rm -f .github/pksg-ui-patch.trigger
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html .github/pksg-ui-patch.trigger
+          git add index.html
           git commit -m 'fix: pokemon sprites and editor UI' || exit 0
           git push
