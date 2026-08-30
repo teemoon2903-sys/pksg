@@ -335,7 +335,7 @@ function parseSlots(){
   let sectors={};let counter=-1;
   for(let i=0;i<14;i++){
    let off=(base+i)*4096,id=u16(bytes,off+4084),c=u32(bytes,off+4092);
-   if(id<14){sectors[id]=bytes.slice(off,off+4080);counter=Math.max(counter,c)}
+   if(id<14){sectors[id]=bytes.slice(off,off+3968);counter=Math.max(counter,c)}
   }
   let valid=Object.keys(sectors).length===14;
   if(valid)slots.push({base,counter,sectors})
@@ -346,12 +346,16 @@ function parseSlots(){
 }
 
 function buildLogical(slot){
- let out=new Uint8Array(14*4080);
- for(let i=0;i<14;i++)out.set(slot.sectors[i],i*4080);
+ let out=new Uint8Array(14*3968);
+ for(let i=0;i<14;i++)out.set(slot.sectors[i],i*3968);
  return out;
 }
 
-function boxMonAt(box,slot){return 0x04+(box*30+slot)*76}
+function boxMonAt(box,slot){
+  // SoulGold keeps the original 15 boxes contiguous, then stores Box 16
+  // in the extension area at 0x87B8.
+  return box<15 ? 0x04+(box*30+slot)*76 : 0x87B8+slot*76;
+ }
 
 function readMonFrom(data,off,isParty=false){
  const raw=data.slice(off,off+76),pid=u32(raw,0),ot=u32(raw,4);
@@ -364,7 +368,7 @@ function readMonFrom(data,off,isParty=false){
  const headerNature=(raw[18]>>>3)&31;
  const nature=(pid%25)^headerNature;
  const shiny=(raw[30]&64)?1:0;
- let level=isParty?data[off+84]:Math.max(1,levelFromExp(exp));
+ let level=isParty?data[off+80]:Math.max(1,levelFromExp(exp));
  return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
 }
 
@@ -379,7 +383,7 @@ function levelFromExp(exp){
 }
 
 function getPartyData(){
- const sb=logical.slice(4080,4080*5);
+ const sb=logical.slice(3968,3968*5);
  let count=sb[0x234],mons=[];
  for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
  return {sb,count,mons};
@@ -414,9 +418,9 @@ function render(){
   `โหลดแล้ว • Save slot ${activeSlot+1} • Counter ${current.counter}\nParty ${p.count}/6 • PC 16 กล่อง × 30 ช่อง`;
 }
 
-function saveblock1(){return logical.slice(4080,4080+4*4080)}
+function saveblock1(){return logical.slice(3968,3968+4*3968)}
 function writeSB1(sb){
- for(let i=0;i<4;i++)logical.set(sb.slice(i*4080,(i+1)*4080),4080+i*4080)
+ for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
 }
 function applyGeneral(){
  let sb=saveblock1();
@@ -426,8 +430,8 @@ function applyGeneral(){
 }
 
 function openEditor(where,index){
- let sb=where==="party"?saveblock1():logical.slice(5*4080,14*4080);
- let off=where==="party"?0x238+index*100:4+(current.box*30+index)*76;
+ let sb=where==="party"?saveblock1():logical.slice(5*3968,14*3968);
+ let off=where==="party"?0x238+index*100:boxMonAt(current.box,index);
  let m=readMonFrom(sb,off,where==="party");
  current.edit={where,index,off,m};
  document.getElementById("eSpecies").value=m.species;
@@ -502,7 +506,7 @@ function applyMon(){
  }
  for(let i=0;i<4;i++)vals.moves.push(+document.getElementById("mv"+i).value);
 
- let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let sb=e.where==="party"?saveblock1():logical.slice(5*3968,14*3968);
  let off=e.off,raw=sb.slice(off,off+76),out=patchBox(raw,vals);
 
  // Gen-III-style Pokémon data stores EXP at +0x44 (24-bit).
@@ -516,11 +520,11 @@ function applyMon(){
 
  if(e.where==="party"){
   // Party cache: +0x54 is the displayed/current level.
-  sb[off+84]=level;
+  sb[off+80]=level;
   writeSB1(sb)
  }else{
   // PC Pokémon has no party level cache; EXP determines its level.
-  logical.set(sb,5*4080)
+  logical.set(sb,5*3968)
  }
  closeEditor();render();
  document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
@@ -536,7 +540,7 @@ function renderBox(){
  }
  current.box=+sel.value;
  const grid=document.getElementById("boxGrid");grid.innerHTML="";
- const storage=logical.slice(5*4080,14*4080);
+ const storage=logical.slice(5*3968,14*3968);
  for(let i=0;i<30;i++){
   let m=readMonFrom(storage,boxMonAt(current.box,i));
   let d=document.createElement("div");
@@ -563,7 +567,7 @@ function createPCMon(){
  if(!sp||sp<1||sp>2047){alert("กรุณาเลือก Pokémon ก่อน");return}
  if(slot<0||slot>29){alert("ช่อง PC ต้องอยู่ระหว่าง 1-30");return}
 
- let storage=logical.slice(5*4080,14*4080),
+ let storage=logical.slice(5*3968,14*3968),
  off=boxMonAt(box,slot),
  raw=new Uint8Array(76);
 
@@ -579,7 +583,7 @@ function createPCMon(){
  w16(raw,28,pokemonChecksum(raw));
 
  storage.set(raw,off);
- logical.set(storage,5*4080);
+ logical.set(storage,5*3968);
  render();
  document.getElementById("status").textContent=
   `สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
@@ -617,38 +621,67 @@ function setItem(){
 
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ // SoulGold save format: 3968 bytes of section data, 116 bytes of
+ // SaveBlock3 chunk, then the 12-byte footer. Section 13 is FULL SIZE
+ // (3968 bytes) in SoulGold; the extra 1324 bytes live in sector 30/31.
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
+ const DATA_SIZE=3968, CHUNK_SIZE=116, FOOTER_SIZE=12;
  const newCounter=(slot.counter+1)>>>0;
- // SoulGold selects the active save block using the save counter parity.
- // Export the edited data to the opposite physical save block with a new counter.
  const targetBase=(newCounter%2)===0?0:14;
 
+ // Preserve the ROM's sector rotation. The next save moves every section
+ // one physical sector forward instead of rewriting them in ID order.
+ const sourceById=new Map();
+ const sourcePhysicalById=new Map();
+ for(let physical=0;physical<14;physical++){
+  const po=(slot.base+physical)*4096;
+  const id=u16(bytes,po+4084);
+  if(id<14){
+   sourceById.set(id,po);
+   sourcePhysicalById.set(id,physical);
+  }
+ }
+ if(sourceById.size!==14)throw new Error("ไม่พบ sector 0–13 ครบชุดสำหรับ Export");
+
  for(let id=0;id<14;id++){
-  const po=(targetBase+id)*4096;
-  const size=SECTION_SIZES[id]??3968;
-  const data=logical.slice(id*4080,id*4080+size);
+  const sourcePhysical=sourcePhysicalById.get(id);
+  const targetPhysical=(sourcePhysical+1)%14;
+  const po=(targetBase+targetPhysical)*4096;
+  const size=SECTION_SIZES[id];
+  const data=logical.slice(id*DATA_SIZE,id*DATA_SIZE+size);
+  const sourcePo=sourceById.get(id);
+
+  // The game clears the complete sector before writing. Preserve only the
+  // current SaveBlock3 chunk for this section; do not carry unrelated bytes.
   out.fill(0,po,po+4096);
   out.set(data,po);
+  out.set(bytes.slice(sourcePo+DATA_SIZE,sourcePo+DATA_SIZE+CHUNK_SIZE),po+DATA_SIZE);
+
   w16(out,po+4084,id);
   w16(out,po+4086,checksum(data));
   w32(out,po+4088,0x08012025);
   w32(out,po+4092,newCounter);
  }
 
- // Box 16 overflow follows the same counter parity (sector 30/31).
- // Preserve the existing overflow bytes when present.
- const overflowPhysical=30+(newCounter%2);
- const oo=overflowPhysical*4096;
- if(oo+4096<=out.length){
-  const oldPhysical=30+(slot.counter%2);
-  const overflow=bytes.slice(oldPhysical*4096,oldPhysical*4096+1324);
-  out.fill(0,oo,oo+4096);
-  out.set(overflow,oo);
-  w16(out,oo+4084,overflowPhysical);
-  w16(out,oo+4086,checksum(overflow));
-  w32(out,oo+4088,0x08012025);
-  w32(out,oo+4092,newCounter);
- }
+ // SoulGold Box 16 extension: 1324 bytes live in sector 30/31,
+ // selected by save-counter parity. Preserve the edited/current extension.
+ const OVERFLOW_SIZE=1324;
+ const oldOverflowPhysical=30+(slot.counter%2);
+ const newOverflowPhysical=30+(newCounter%2);
+ const oldOo=oldOverflowPhysical*4096;
+ const newOo=newOverflowPhysical*4096;
+
+ if(oldOo+OVERFLOW_SIZE>bytes.length || newOo+4096>out.length)
+  throw new Error("ไม่พบพื้นที่ Box 16 overflow ในเซฟ");
+
+ const overflow=bytes.slice(oldOo,oldOo+OVERFLOW_SIZE);
+ out.fill(0,newOo,newOo+4096);
+ out.set(overflow,newOo);
+ w16(out,newOo+4084,newOverflowPhysical);
+ w16(out,newOo+4086,checksum(overflow));
+ w32(out,newOo+4088,0x08012025);
+ w32(out,newOo+4092,newCounter);
+
  return out;
 }
 
@@ -697,7 +730,7 @@ function validateSave(silent=false){
  const problems=[],ids=new Set();
  let validCount=0,checksumOK=0;
  const base=current.base;
- const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};
 
  for(let physical=0;physical<14;physical++){
   const po=(base+physical)*4096;
@@ -736,6 +769,29 @@ function validateSave(silent=false){
   const missing=[];
   for(let i=0;i<14;i++)if(!ids.has(i))missing.push(i);
   problems.push("Sector ID ไม่ครบ 0–13 (ขาด: "+missing.join(", ")+")");
+ }
+
+ // All 14 regular sections in one SoulGold save slot must share the same counter.
+ const counters=new Set();
+ for(let physical=0;physical<14;physical++){
+  const po=(base+physical)*4096;
+  if(u32(bytes,po+4088)===0x08012025)counters.add(u32(bytes,po+4092));
+ }
+ if(counters.size!==1)problems.push("Save Counter ของ 14 sector ไม่ตรงกัน");
+
+ // SoulGold's 16-box extension uses sector 30/31 for 1324 bytes.
+ const overflowPhysical=30+(current.counter%2);
+ const overflowPo=overflowPhysical*4096;
+ if(overflowPo+4096<=bytes.length){
+  const osig=u32(bytes,overflowPo+4088), oid=u16(bytes,overflowPo+4084);
+  const ostored=u16(bytes,overflowPo+4086);
+  const ocalc=checksum(bytes.slice(overflowPo,overflowPo+1324));
+  const ocounter=u32(bytes,overflowPo+4092);
+  if(oid!==overflowPhysical || osig!==0x08012025 || ocounter!==current.counter || ostored!==ocalc){
+   problems.push("Box 16 overflow sector "+overflowPhysical+" checksum/metadata ไม่ตรง");
+  }
+ }else{
+  problems.push("ไม่พบ Box 16 overflow sector "+overflowPhysical);
  }
 
  if(bytes.length!==131072){
