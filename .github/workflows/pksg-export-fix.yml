@@ -1,0 +1,49 @@
+name: PKSG export save fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch rebuild function
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''function rebuild(){const out=bytes.slice(),counter=(slot.counter+1)>>>0,targetBase=slot.base===0?14:0;for(let id=0;id<14;id++){const p=targetBase+id,po=p*SECTOR,data=sec(id),size=(slot.ss.find(x=>x.id===id)?.size||SIZE[id]);out.fill(0,po,po+SECTOR);out.set(data.slice(0,DATA),po);w16(out,po+4084,id);w16(out,po+4086,csum(data.slice(0,size)));w32(out,po+4088,SIG);w32(out,po+4092,counter)}return out}'''
+          new = '''function rebuild(){const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];for(let i=0;i<14;i++){const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);if(id<14)order.push(id)}if(order.length!==14||new Set(order).size!==14)throw new Error("Save sector order ไม่ถูกต้อง");const rotated=[order[order.length-1],...order.slice(0,-1)];for(let physical=0;physical<14;physical++){const id=rotated[physical],po=(targetBase+physical)*SECTOR,data=sec(id),size=(slot.ss.find(x=>x.id===id)?.size||SIZE[id]);out.fill(0,po,po+SECTOR);out.set(data.slice(0,DATA),po);w16(out,po+4084,id);w16(out,po+4086,csum(data.slice(0,size)));w32(out,po+4088,SIG);w32(out,po+4092,counter)}const check=readSlot(out,targetBase);if(!check||!check.valid||check.counter!==counter)throw new Error("สร้าง Save Slot ใหม่ไม่ผ่านการตรวจสอบ");return out}'''
+          if old not in s:
+              raise SystemExit('Expected rebuild function was not found; no changes made.')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          print('Export rebuild patched.')
+          PY
+      - name: Verify and commit
+        shell: bash
+        run: |
+          grep -q 'const rotated=\[order\[order.length-1\]' index.html
+          grep -q 'สร้าง Save Slot ใหม่ไม่ผ่านการตรวจสอบ' index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: rebuild GBA save with proper slot rotation' || true
+          git push
+      - name: Remove temporary workflow
+        if: always()
+        shell: bash
+        run: |
+          git pull --ff-only
+          rm -f .github/workflows/pksg-export-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: remove temporary export fix workflow' || true
+          git push || true
