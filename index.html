@@ -145,7 +145,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="pokemon-picker-wrap">
  <label>🔍 ค้นหา Pokémon</label>
  <div class="pokemon-search-row">
-  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือเลข 25">
+  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือ Ceruledge">
   <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
  </div>
 
@@ -291,6 +291,17 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <script>
 const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
+// Maps for ROM Species ID <-> PokeAPI Dex ID
+const ROM_TO_DEX = {
+ 1325: 937, // Ceruledge
+ 1326: 936  // Armarouge
+};
+
+const DEX_TO_ROM = {
+ 937: 1325, // Ceruledge
+ 936: 1326  // Armarouge
+};
+
 const DEX_NAMES={
 1:"Bulbasaur",2:"Ivysaur",3:"Venusaur",4:"Charmander",5:"Charmeleon",6:"Charizard",
 7:"Squirtle",8:"Wartortle",9:"Blastoise",25:"Pikachu",133:"Eevee",196:"Espeon",
@@ -298,10 +309,10 @@ const DEX_NAMES={
 257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",
 448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
 908:"Meowscarada",911:"Skeledirge",914:"Quaquaval",936:"Armarouge",937:"Ceruledge",
-1007:"Koraidon",1008:"Miraidon",1325:"Ceruledge"
+1007:"Koraidon",1008:"Miraidon",1325:"Ceruledge",1326:"Armarouge"
 };
 
-const SPECIES_TO_SPRITE={1325:937,937:937,936:936,908:908,911:911,914:914};
+const SPECIES_TO_SPRITE={1325:937,1326:936,937:937,936:936,908:908,911:911,914:914};
 const POKEMON_API_MAX=1025;
 
 let bytes=null,original=null,filename="PKSG.srm",activeSlot=0,logical=null,current=null,dirty=false;
@@ -420,7 +431,8 @@ function getPartyData(){
 }
 
 function sprite(id){
- return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+(SPECIES_TO_SPRITE[id]||id)+".png";
+ const spriteId = SPECIES_TO_SPRITE[id] || ROM_TO_DEX[id] || id;
+ return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+spriteId+".png";
 }
 
 function name(id){
@@ -540,7 +552,7 @@ function applyMon(){
  }else{
   setStorage(sb);
  }
- dirty=true; // เปิดใช้งานสถานะ dirty เพื่อให้ระบบยอมบันทึกไฟล์
+ dirty=true;
  closeEditor();render();
  document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
 }
@@ -755,16 +767,21 @@ function pokemonDisplayName(n){
 }
 
 function pokemonSprite(id){
- return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+(SPECIES_TO_SPRITE[id]||id)+".png"
+ return sprite(id);
 }
 
 function ensureCustomPokemon(){
  const custom=[
-  {id:1325,name:"Ceruledge"},
-  {id:1326,name:"Armarouge"}
+  {id:1325, dexId:937, name:"ceruledge"},
+  {id:1326, dexId:936, name:"armarouge"}
  ];
  for(const p of custom){
-  if(!pokemonList.some(x=>x.id===p.id))pokemonList.push(p)
+  const disp = pokemonDisplayName(p.name);
+  DEX_NAMES[p.id] = disp;
+  SPECIES_TO_SPRITE[p.id] = p.dexId;
+  if(!pokemonList.some(x=>x.id===p.id)){
+   pokemonList.push({id: p.id, dexId: p.dexId, name: p.name});
+  }
  }
 }
 
@@ -775,24 +792,37 @@ async function loadPokemonList(){
   if(!res.ok)throw new Error("HTTP "+res.status);
   const data=await res.json();
 
-  pokemonList=data.results.map((p,index)=>({
-   id:index+1,
-   name:p.name
-  }));
+  pokemonList=data.results.map((p,index)=>{
+   const dexId = index + 1;
+   const romId = DEX_TO_ROM[dexId] || dexId;
+   const disp = pokemonDisplayName(p.name);
+   
+   DEX_NAMES[romId] = disp;
+   DEX_NAMES[dexId] = disp;
+   if(ROM_TO_DEX[romId]) SPECIES_TO_SPRITE[romId] = ROM_TO_DEX[romId];
+
+   return {
+    id: romId,
+    dexId: dexId,
+    name: p.name
+   };
+  });
 
   ensureCustomPokemon();
   pokemonLoaded=true;
   renderPokemonPicker();
   renderEditorPokemonPicker();
+  if(bytes) render();
  }catch(e){
   pokemonList=Object.entries(DEX_NAMES).map(([id,n])=>({
    id:+id,
+   dexId: ROM_TO_DEX[+id] || +id,
    name:n.toLowerCase().replace(/ /g,"-")
   }));
   ensureCustomPokemon();
   renderPokemonPicker();
   renderEditorPokemonPicker();
-  picker.innerHTML+=`<div class="picker-status">⚠️ โหลดรายชื่อเต็มไม่ได้ — แสดงรายชื่อที่มีในตัวโปรแกรม</div>`;
+  if(picker) picker.innerHTML+=`<div class="picker-status">⚠️ โหลดรายชื่อเต็มไม่ได้ — แสดงรายชื่อที่มีในตัวโปรแกรม</div>`;
  }
 }
 
@@ -803,7 +833,8 @@ function filterPokemon(search){
   return !search ||
     p.name.toLowerCase().includes(search) ||
     display.includes(search) ||
-    String(p.id)===search
+    String(p.id)===search ||
+    (p.dexId && String(p.dexId)===search);
  }).slice(0,150);
 }
 
@@ -812,7 +843,7 @@ function makePokemonCard(p,onSelect){
  d.className="pokemon-card";
  d.dataset.id=p.id;
  d.innerHTML=`
-  <img src="${pokemonSprite(p.id)}" loading="lazy" onerror="this.style.opacity='.25'">
+  <img src="${sprite(p.id)}" loading="lazy" onerror="this.style.opacity='.25'">
   <b>${pokemonDisplayName(p.name)}</b>
   <small>#${p.id}</small>
  `;
@@ -825,7 +856,7 @@ function selectPokemon(p,card){
  document.getElementById("newSpecies").value=p.id;
 
  document.getElementById("selectedPokemon").hidden=false;
- document.getElementById("selectedPokemonImg").src=pokemonSprite(p.id);
+ document.getElementById("selectedPokemonImg").src=sprite(p.id);
  document.getElementById("selectedPokemonName").textContent=pokemonDisplayName(p.name);
  document.getElementById("selectedPokemonId").textContent=p.id;
 
@@ -856,7 +887,7 @@ function renderPokemonPicker(){
 function selectEditorPokemon(p,card){
  document.getElementById("eSpecies").value=p.id;
  document.getElementById("eName").textContent=pokemonDisplayName(p.name);
- document.getElementById("eSprite").src=pokemonSprite(p.id);
+ document.getElementById("eSprite").src=sprite(p.id);
  document.getElementById("eMeta").textContent=
   `Species ID ${p.id} • PID ${current.edit?.m?.pid?.toString(16)||""}`;
 
@@ -1024,7 +1055,7 @@ function moveSprite(id){
   return "";
 }
 function itemSprite(id){
-  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+String(itemListData.find(x=>x.id===id)?.name||"")+" .png".replace(" ","");
+  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+String(itemListData.find(x=>x.id===id)?.name||"")+".png";
 }
 
 function filterLookup(list, search){
