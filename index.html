@@ -7,9 +7,14 @@
     var r=await fetch('https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html?cache='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('โหลด PKSG ต้นฉบับไม่สำเร็จ HTTP '+r.status);
     var html=await r.text();
-    var patch='\\n<script>(function(){\\nfunction sameSave(a,b){if(!a||!b||a.length!==b.length)return false;for(var i=0;i<a.length;i++){if(a[i]!==b[i])return false;}return true;}\\nfunction install(){if(typeof exportSave!=="function")return false;var oldExport=exportSave;exportSave=function(){try{if(typeof bytes!=="undefined"&&typeof original!=="undefined"&&sameSave(bytes,original)){if(typeof dl==="function"){dl(original,typeof filename!=="undefined"?filename:"PKSG.srm");if(typeof status!=="undefined"&&status)status.textContent="✅ Export สำเร็จ • ไม่มีการแก้ข้อมูล จึงใช้เซฟต้นฉบับทุก byte";}return;}return oldExport.apply(this,arguments);}catch(e){console.error(e);return oldExport.apply(this,arguments);}};return true;}\\nif(!install()){var n=0,t=setInterval(function(){if(install()||++n>100){clearInterval(t);}},50);}})();<\\/script>\\n';
-    if(html.indexOf('</html>')!==-1) html=html.replace('</html>',patch+'</html>');
-    else html+=patch;
+
+    // แก้ที่ต้นทางของ exportSave โดยตรง: ถ้าไม่มีการแก้ข้อมูล ให้ส่งออก original แบบ byte-for-byte
+    var a=html.indexOf('function exportSave(){');
+    var b=html.indexOf('function backup(){',a);
+    if(a<0||b<0) throw new Error('ไม่พบฟังก์ชัน Export ของ PKSG ต้นฉบับ');
+    var fixedExport='function exportSave(){if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");try{let same=!!original&&bytes.length===original.length;if(same){for(let i=0;i<bytes.length;i++){if(bytes[i]!==original[i]){same=false;break}}}let out=same?original.slice():rebuild();let ext=(filename.match(/\\.(sav|srm|dat)$/i)||[".srm"])[0];let outName=filename.replace(/\\.(sav|srm|dat)$/i,"")+ext;dl(out,outName);status.textContent=same?"✅ Export สำเร็จ • ใช้เซฟต้นฉบับแบบ byte-for-byte (ยังไม่มีการแก้ไข)":"✅ Export สำเร็จ • สร้าง Save ใหม่จากข้อมูลที่แก้ไขแล้ว"}catch(e){console.error(e);status.textContent="❌ Export ไม่สำเร็จ: "+(e&&e.message?e.message:e);alert("Export ไม่สำเร็จ\\n\\n"+(e&&e.message?e.message:e))}}';
+    html=html.slice(0,a)+fixedExport+html.slice(b);
+
     document.open();document.write(html);document.close();
   } catch(e) {
     document.getElementById('boot').textContent='❌ '+(e&&e.message?e.message:e);
