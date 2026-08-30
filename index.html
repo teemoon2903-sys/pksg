@@ -335,7 +335,7 @@ function parseSlots(){
   let sectors={};let counter=-1;
   for(let i=0;i<14;i++){
    let off=(base+i)*4096,id=u16(bytes,off+4084),c=u32(bytes,off+4092);
-   if(id<14){sectors[id]=bytes.slice(off,off+4080);counter=Math.max(counter,c)}
+   if(id<14){sectors[id]=bytes.slice(off,off+3968);counter=Math.max(counter,c)}
   }
   let valid=Object.keys(sectors).length===14;
   if(valid)slots.push({base,counter,sectors})
@@ -346,8 +346,8 @@ function parseSlots(){
 }
 
 function buildLogical(slot){
- let out=new Uint8Array(14*4080);
- for(let i=0;i<14;i++)out.set(slot.sectors[i],i*4080);
+ let out=new Uint8Array(14*3968);
+ for(let i=0;i<14;i++)out.set(slot.sectors[i],i*3968);
  return out;
 }
 
@@ -401,7 +401,7 @@ function levelFromExp(exp){
 }
 
 function getPartyData(){
- const sb=logical.slice(4080,4080*5);
+ const sb=logical.slice(3968,3968*5);
  let count=sb[0x234],mons=[];
  for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
  return {sb,count,mons};
@@ -436,9 +436,9 @@ function render(){
   `โหลดแล้ว • Save slot ${activeSlot+1} • Counter ${current.counter}\nParty ${p.count}/6 • PC 14 กล่อง × 30 ช่อง`;
 }
 
-function saveblock1(){return logical.slice(4080,4080+4*4080)}
+function saveblock1(){return logical.slice(3968,3968+4*3968)}
 function writeSB1(sb){
- for(let i=0;i<4;i++)logical.set(sb.slice(i*4080,(i+1)*4080),4080+i*4080)
+ for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
 }
 function applyGeneral(){
  let sb=saveblock1();
@@ -448,7 +448,7 @@ function applyGeneral(){
 }
 
 function openEditor(where,index){
- let sb=where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let sb=where==="party"?saveblock1():logical.slice(5*3968,14*3968);
  let off=where==="party"?0x238+index*100:4+(current.box*30+index)*80;
  let m=readMonFrom(sb,off,where==="party");
  current.edit={where,index,off,m};
@@ -486,10 +486,10 @@ function applyMon(){
  const vals={species:+document.getElementById("eSpecies").value,item:+document.getElementById("eItem").value,nature:+document.getElementById("eNature").value,shiny:+document.getElementById("eShiny").value,level,iv:[],ev:[],moves:[]};
  for(let i=0;i<6;i++){vals.iv.push(+document.getElementById("iv"+i).value);vals.ev.push(+document.getElementById("ev"+i).value)}
  for(let i=0;i<4;i++)vals.moves.push(+(document.getElementById("mv"+i)?.value||0));
- let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let sb=e.where==="party"?saveblock1():logical.slice(5*3968,14*3968);
  let raw=sb.slice(e.off,e.off+80),out=patchBox(raw,vals);
  sb.set(out,e.off);
- if(e.where==="party"){sb[e.off+84]=level;writeSB1(sb)}else{logical.set(sb,5*4080)}
+ if(e.where==="party"){sb[e.off+84]=level;writeSB1(sb)}else{logical.set(sb,5*3968)}
  dirty=true;closeEditor();render();document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
 }
 
@@ -498,7 +498,7 @@ function renderBox(){
  if(!sel.options.length){for(let i=0;i<14;i++){let o=document.createElement("option");o.value=i;o.textContent="Box "+(i+1);sel.appendChild(o)}}
  current.box=+sel.value;
  const grid=document.getElementById("boxGrid");grid.innerHTML="";
- const storage=logical.slice(5*4080,14*4080);
+ const storage=logical.slice(5*3968,14*3968);
  for(let i=0;i<30;i++){
    let m=readMonFrom(storage,boxMonAt(current.box,i));
    let d=document.createElement("div");d.className="slot boxslot "+(m.species?"":"empty");
@@ -512,8 +512,8 @@ function createPCMon(){
  let box=+document.getElementById("boxSelect").value,slot=+document.getElementById("boxSlot").value-1,sp=+document.getElementById("newSpecies").value,lv=+document.getElementById("newLevel").value,nat=+document.getElementById("newNature").value;
  if(!sp||sp<1||sp>2047){alert("กรุณาเลือก Pokémon ก่อน");return}
  if(slot<0||slot>29){alert("ช่อง PC ต้องอยู่ระหว่าง 1-30");return}
- let storage=logical.slice(5*4080,14*4080),off=boxMonAt(box,slot),raw=new Uint8Array(80),m={species:sp,item:0,nature:nat,level:lv,iv:[31,31,31,31,31,31],ev:[0,0,0,0,0,0],moves:[0,0,0,0]},out=writeMon(m,raw);
- storage.set(out,off);logical.set(storage,5*4080);dirty=true;render();document.getElementById("status").textContent=`สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
+ let storage=logical.slice(5*3968,14*3968),off=boxMonAt(box,slot),raw=new Uint8Array(80),m={species:sp,item:0,nature:nat,level:lv,iv:[31,31,31,31,31,31],ev:[0,0,0,0,0,0],moves:[0,0,0,0]},out=writeMon(m,raw);
+ storage.set(out,off);logical.set(storage,5*3968);dirty=true;render();document.getElementById("status").textContent=`สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
 }
 
 function expForLevel(l){
@@ -548,12 +548,11 @@ function setItem(){
 
 function rebuildSave(){
  const out=bytes.slice(),slot=current;
- // 14 boxes × 30 slots × 80 bytes + 4-byte storage header = 33,604 bytes.
- // Eight full 3968-byte sectors + 1860 bytes in Section 13.
+ // Gen III storage = 8×3968 + 2000 = 33744 bytes across sections 5–13.
  const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
  for(let physical=0;physical<14;physical++){
    const po=(slot.base+physical)*4096,id=u16(bytes,po+4084);if(id<0||id>=14)continue;
-   const size=SECTION_SIZES[id],data=logical.slice(id*4080,id*4080+size);
+   const size=SECTION_SIZES[id],data=logical.slice(id*3968,id*3968+size);
    out.set(data,po);
    for(let z=size;z<3968;z++)out[po+z]=bytes[po+z];
    w16(out,po+4084,id);w16(out,po+4086,checksum(data));w32(out,po+4088,0x08012025);w32(out,po+4092,slot.counter);
