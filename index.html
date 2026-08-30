@@ -4,7 +4,7 @@
 <script>
 (async()=>{
  try{
-  const r=await fetch('index_original_backup.html?'+Date.now(),{cache:'no-store'});
+  const r=await fetch('https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html?'+Date.now(),{cache:'no-store'});
   if(!r.ok)throw new Error('โหลดไฟล์ต้นฉบับไม่สำเร็จ: HTTP '+r.status);
   let html=await r.text();
   html=html.replace(/const SIZE=\{[^;]+\};/,'const SIZE={0:3884,1:3968,2:3968,3:3968,4:3664,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:3968};');
