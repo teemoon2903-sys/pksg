@@ -9,22 +9,25 @@
   let html=await r.text();
   const rebuild=/function rebuild\(\)\{[\s\S]*?\}\s*function exportSave/;
   const replacement=`function rebuild(){
- const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];
+ const out=bytes.slice(),sourceBase=slot.base,counter=(slot.counter+1)>>>0,targetBase=(counter%2)*14,dirty=(window.__pksgDirtySections instanceof Set)?window.__pksgDirtySections:new Set(),order=[];
  for(let i=0;i<14;i++){
   const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);
-  if(id<14)order.push(id);
+  if(id<14)order.push({id,p:i});
  }
- if(order.length!==14||new Set(order).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot ที่สมบูรณ์");
- const rotated=[order[order.length-1],...order.slice(0,-1)];
- for(let physical=0;physical<14;physical++){
-  const id=rotated[physical],targetPos=(targetBase+physical)*SECTOR,source=slot.ss.find(x=>x.id===id);
-  if(!source)throw new Error("ไม่พบ section "+id);
-  const sourcePos=(sourceBase+source.p)*SECTOR;
-  out.set(bytes.slice(sourcePos,sourcePos+SECTOR),targetPos);
-  const data=sec(id),size=source.size||sectionSize(id,bytes.slice(sourcePos,sourcePos+SECTOR));
-  out.set(data.slice(0,size),targetPos);
+ if(order.length!==14||new Set(order.map(x=>x.id)).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot ที่สมบูรณ์");
+ for(const item of order){
+  const id=item.id,sourcePos=(sourceBase+item.p)*SECTOR,targetPhysical=(item.p+1)%14,targetPos=(targetBase+targetPhysical)*SECTOR;
+  const raw=bytes.slice(sourcePos,sourcePos+SECTOR),size=slot.ss.find(x=>x.id===id)?.size||sectionSize(id,raw),isDirty=dirty.has(id);
+  out.set(raw,targetPos);
+  if(isDirty){
+   const data=sec(id);
+   if(!data||data.length<size)throw new Error("ข้อมูล section "+id+" ไม่สมบูรณ์");
+   out.set(data.slice(0,size),targetPos);
+   w16(out,targetPos+4086,csum(data.slice(0,size)));
+  }else{
+   w16(out,targetPos+4086,u16(raw,4086));
+  }
   w16(out,targetPos+4084,id);
-  w16(out,targetPos+4086,csum(out.slice(targetPos,targetPos+size)));
   w32(out,targetPos+4088,SIG);
   w32(out,targetPos+4092,counter);
  }
@@ -33,6 +36,40 @@
 function exportSave`;
   if(!rebuild.test(html))throw new Error('ไม่พบ Save Rebuild Engine ใน index.html ต้นฉบับ');
   html=html.replace(rebuild,replacement);
+  const patch=`
+<script>
+window.__pksgDirtySections=new Set();
+window.__pksgDirty=false;
+window.__pksgMark=function(){window.__pksgDirty=true;for(const id of arguments)window.__pksgDirtySections.add(id)};
+(function(){
+ function wrap(name,fn){
+  const old=window[name];
+  if(typeof old!=="function")return;
+  window[name]=function(){fn();return old.apply(this,arguments)};
+ }
+ wrap("writeSB1",()=>window.__pksgMark(1));
+ wrap("setItem",()=>window.__pksgMark(1));
+ wrap("applyGeneral",()=>window.__pksgMark(1));
+ wrap("createPCMon",()=>window.__pksgMark(5,6,7,8,9,10,11,12,13));
+ wrap("applyMon",()=>{
+  try{
+   if(typeof current!=="undefined"&&current.edit&&current.edit.where==="box")window.__pksgMark(5,6,7,8,9,10,11,12,13);
+   else window.__pksgMark(1);
+  }catch(_){window.__pksgMark(1)}
+ });
+ const oldExport=window.exportSave;
+ if(typeof oldExport==="function")window.exportSave=function(){
+  if(!bytes)return;
+  if(!window.__pksgDirty){
+   dl(original||bytes,filename.replace(/\\.(sav|srm)$/i,"")+"_PKSG.srm");
+   const s=document.getElementById("status");if(s)s.textContent="Export สำเร็จ • ไม่มีการแก้ข้อมูล จึงคงไฟล์ต้นฉบับแบบ byte-for-byte";
+   return;
+  }
+  return oldExport.apply(this,arguments);
+ };
+})();
+</script>`;
+  html=html.replace('</body>',patch+'</body>');
   document.open();document.write(html);document.close();
  }catch(e){document.getElementById('boot').textContent='❌ '+e.message;}
 })();
