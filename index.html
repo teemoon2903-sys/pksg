@@ -1,68 +1,1082 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PKSG — SoulGold GBA Save Editor</title></head>
-<body><div id="boot" style="font-family:system-ui;padding:20px">กำลังโหลด PKSG…</div>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKSG — SoulGold Save Editor</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f2f3f5;color:#171717;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:auto;padding:16px}
+.head{background:#111;color:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
+h1,h2,h3{margin:0 0 10px}.sub{opacity:.75}
+.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 15px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+label{font-weight:700;font-size:13px;display:block}
+input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff;font:inherit}
+button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}
+.primary{background:#111;color:#fff}.secondary{background:#e8e8e8}.danger{background:#fff0f0;color:#9b1c1c}
+.status{background:#f3f3f3;border-radius:10px;padding:11px;white-space:pre-wrap}
+.small{font-size:12px;color:#666}
+.tabs{display:flex;gap:7px;overflow:auto;margin:10px 0}
+.tab{white-space:nowrap}.tab.active{background:#111;color:#fff}
+.party{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.slot{border:1px solid #ddd;border-radius:14px;padding:8px;text-align:center;background:#fafafa;cursor:pointer}
+.slot.active{border:2px solid #111}
+.slot img{width:75px;height:75px;image-rendering:pixelated;object-fit:contain}
+.empty{opacity:.45}
+.boxgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.boxslot{min-height:110px}
+@media(max-width:650px){
+ .party{grid-template-columns:repeat(3,1fr)}
+ .boxgrid{grid-template-columns:repeat(5,1fr)}
+}
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:30;padding:12px;overflow:auto}
+.modal.show{display:block}
+.modalbox{max-width:760px;margin:20px auto;background:#fff;border-radius:20px;padding:18px}
+.modalhead{display:flex;justify-content:space-between;align-items:center}
+.pokehead{display:flex;gap:15px;align-items:center}
+.pokehead img{width:120px;height:120px;image-rendering:pixelated}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:500px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+.itemrow{display:grid;grid-template-columns:1fr 100px 90px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #eee}
+
+/* Pokémon picker */
+.pokemon-picker-wrap{margin-top:12px}
+.pokemon-search-row{display:flex;gap:8px}
+.pokemon-search-row input{flex:1}
+.pokemon-picker{
+ display:grid;
+ grid-template-columns:repeat(auto-fill,minmax(105px,1fr));
+ gap:8px;
+ margin-top:10px;
+ max-height:430px;
+ overflow:auto;
+ padding:5px;
+ border:1px solid #eee;
+ border-radius:14px;
+ background:#fafafa;
+}
+.pokemon-card{
+ border:2px solid transparent;
+ border-radius:14px;
+ padding:8px 5px;
+ text-align:center;
+ background:#fff;
+ cursor:pointer;
+ transition:.12s;
+}
+.pokemon-card:hover{transform:translateY(-2px);box-shadow:0 3px 10px #0002}
+.pokemon-card.selected{border-color:#111;background:#eee}
+.pokemon-card img{width:72px;height:72px;object-fit:contain;image-rendering:pixelated}
+.pokemon-card b{display:block;font-size:12px;line-height:1.2}
+.pokemon-card small{display:block;color:#777;margin-top:2px}
+.picker-status{padding:12px;text-align:center;color:#666}
+.selected-pokemon{
+ display:flex;align-items:center;gap:10px;
+ margin-top:10px;padding:8px 10px;
+ border-radius:12px;background:#f3f3f3;
+}
+.selected-pokemon img{width:50px;height:50px;image-rendering:pixelated;object-fit:contain}
+
+/* Move / Item pickers */
+.lookup-box{margin-top:8px;padding:10px;border:1px solid #eee;border-radius:14px;background:#fafafa}
+.lookup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px;max-height:300px;overflow:auto}
+.lookup-card{border:2px solid transparent;border-radius:12px;padding:7px;text-align:center;background:#fff;cursor:pointer}
+.lookup-card:hover{box-shadow:0 3px 10px #0002}
+.lookup-card.selected{border-color:#111;background:#eee}
+.lookup-card img{width:52px;height:52px;object-fit:contain;image-rendering:pixelated}
+.lookup-card b{display:block;font-size:11px;line-height:1.2}
+.lookup-card small{display:block;color:#777}
+.selected-lookup{display:flex;align-items:center;gap:10px;margin-top:7px;padding:7px 9px;border-radius:10px;background:#f3f3f3}
+.selected-lookup img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
+.move-picker{margin-top:7px}
+.move-picker-row{display:flex;gap:8px;align-items:center}
+.move-picker-row input[type=text]{flex:1}
+.move-picker-row button{padding:9px 11px}
+.move-picker-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:7px;margin-top:7px;max-height:220px;overflow:auto}
+.move-card{border:2px solid transparent;border-radius:11px;padding:6px;text-align:center;background:#fafafa;cursor:pointer}
+.move-card.selected{border-color:#111;background:#eee}
+.move-card b{display:block;font-size:11px;line-height:1.15}
+.move-card small{color:#777}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head">
+ <h1>🔥 PKSG</h1>
+ <div class="sub">SoulGold GBA Save Editor — ROM-aware build</div>
+</div>
+
+<div class="card">
+<h2>📂 Save</h2>
+<input id="file" type="file" accept=".srm,.sav,.dat">
+<button class="primary" type="button" id="openSaveBtn" style="margin-top:10px">📂 เปิด/อ่านเซฟ</button>
+<div id="fileInfo" class="small" style="margin-top:8px">ยังไม่ได้เปิดเซฟ</div>
+<div class="tabs">
+<button class="tab active" data-tab="party">🐉 Party</button>
+<button class="tab" data-tab="pc">📦 PC</button>
+<button class="tab" data-tab="bag">🎒 Bag</button>
+<button class="tab" data-tab="tools">🛠 Tools</button>
+</div>
+<div id="status" class="status">รอเปิดไฟล์เซฟ</div>
+</div>
+
+<section id="party" class="panel">
+<div class="card"><h2>🐉 Party</h2><div id="partyGrid" class="party"></div></div>
+<div class="card"><div class="grid">
+<div><label>Party count</label><input id="partyCount" type="number" min="0" max="6"></div>
+<div><label>Money</label><input id="money" type="number" min="0" max="9999999"></div>
+</div><button class="primary" style="margin-top:10px" onclick="applyGeneral()">✓ ใช้ค่า</button></div>
+</section>
+
+<section id="pc" class="panel" hidden>
+<div class="card">
+<h2>📦 PC Boxes</h2>
+
+<div class="grid">
+ <div><label>Box</label><select id="boxSelect"></select></div>
+ <div>
+  <label>ช่อง PC</label>
+  <input id="boxSlot" type="number" min="1" max="30" value="1">
+ </div>
+</div>
+
+<div class="pokemon-picker-wrap">
+ <label>🔍 ค้นหา Pokémon</label>
+ <div class="pokemon-search-row">
+  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือเลข 25">
+  <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
+ </div>
+
+ <div id="selectedPokemon" class="selected-pokemon" hidden>
+  <img id="selectedPokemonImg">
+  <div>
+   <b id="selectedPokemonName"></b>
+   <div class="small">Species ID: <span id="selectedPokemonId"></span></div>
+  </div>
+ </div>
+
+ <div id="pokemonPicker" class="pokemon-picker">
+  <div class="picker-status">⏳ กำลังโหลดรายชื่อ Pokémon...</div>
+ </div>
+</div>
+
+<div class="grid" style="margin-top:12px">
+ <div>
+  <label>Species ID</label>
+  <input id="speciesId" type="number" min="1" max="2047" value="1325" readonly>
+ </div>
+</div>
+
+<div class="boxgrid" id="boxGrid" style="margin-top:12px"></div>
+</div>
+
+<div class="card">
+<h3>➕ สร้าง Pokémon ในช่องที่เลือก</h3>
+<div class="grid">
+ <div>
+  <label>Species ID</label>
+  <input id="newSpecies" type="number" min="1" max="2047" value="1325" readonly>
+ </div>
+ <div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
+ <div><label>Nature</label><select id="newNature"></select></div>
+ <div><label>Ability slot</label><select id="newAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
+</div>
+<button class="primary" style="margin-top:10px" onclick="createPCMon()">➕ ใส่ Pokémon</button>
+</div>
+</section>
+
+<section id="bag" class="panel" hidden>
+<div class="card"><h2>🎒 Bag / PC Items</h2>
+<p class="small">เลือกไอเทมด้วยชื่อและรูปได้เลย ส่วน Item ID จะถูกใส่อัตโนมัติ</p>
+
+<div class="lookup-box">
+ <label>🔍 ค้นหา Item</label>
+ <div class="pokemon-search-row">
+  <input id="itemSearch" type="text" placeholder="เช่น Potion, Rare Candy หรือเลข ID">
+  <button class="secondary" type="button" id="clearItemSearch">ล้าง</button>
+ </div>
+ <div id="selectedItem" class="selected-lookup" hidden>
+  <img id="selectedItemImg">
+  <div><b id="selectedItemName"></b><div class="small">Item ID: <span id="selectedItemId"></span></div></div>
+ </div>
+ <div id="itemPicker" class="lookup-grid"><div class="picker-status">⏳ กำลังโหลดรายการไอเทม...</div></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+ <div><label>Item ID</label><input id="itemId" type="number" min="0" max="1023" value="50" readonly></div>
+ <div><label>จำนวน</label><input id="itemQty" type="number" min="0" max="999" value="999"></div>
+ <div><label>Bag slot (0–185)</label><input id="itemSlot" type="number" min="0" max="185" value="0"></div>
+</div>
+<button class="primary" style="margin-top:10px" onclick="setItem()">💾 ใส่ Item</button>
+</div>
+<div class="card"><h3>Item slots</h3><div id="itemList"></div></div>
+</section>
+
+<section id="tools" class="panel" hidden>
+<div class="card"><h2>🛠 Tools</h2>
+<button class="primary" onclick="exportSave()">💾 Export .srm</button>
+<button class="secondary" onclick="exportBackup()">🛡 Backup original</button>
+<button class="secondary" onclick="validateSave()">🔎 ตรวจสอบเซฟ</button>
+<p class="small">ก่อน Export PKSG จะสร้างไฟล์จากข้อมูลใน Save Slot ที่เลือก และคำนวณ checksum ของ sector ที่เขียนกลับ</p>
+<div id="saveDiagnostics" class="status" style="margin-top:10px">ยังไม่ได้ตรวจสอบเซฟ</div>
+</div>
+<div class="card danger"><strong>สำคัญ</strong>
+<p>Species/Item IDs ต้องตรงกับ ROM รุ่นที่เปิดเซฟนี้อยู่ เว็บอ่านโครงสร้าง SoulGold expansion: Party offset 0x238, Money 0x490, PC items 0x498 และ PC 14 กล่อง/30 ช่อง; BoxPokemon ขนาด 80 ไบต์</p>
+</div>
+</section>
+</div>
+
+<div id="editor" class="modal">
+<div class="modalbox">
+<div class="modalhead"><h2>🐉 Pokémon Editor</h2><button class="secondary" onclick="closeEditor()">✕</button></div>
+<div class="pokehead">
+ <img id="eSprite">
+ <div><h2 id="eName"></h2><div id="eMeta" class="small"></div></div>
+</div>
+
+<div class="pokemon-picker-wrap">
+ <label>🔍 เปลี่ยน Pokémon</label>
+ <input id="editorPokemonSearch" type="text" placeholder="พิมพ์ชื่อ Pokémon หรือเลข">
+ <div id="editorPokemonPicker" class="pokemon-picker" style="max-height:260px"></div>
+</div>
+
+<div class="grid" style="margin-top:12px">
+ <div><label>Species ID</label><input id="eSpecies" type="number" min="1" max="2047" readonly></div>
+ <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"><div class="small">เมื่อเปลี่ยน Level ระบบจะปรับ EXP ให้ตรงกับ Level ด้วย</div></div>
+ <div><label>Nature</label><select id="eNature"></select></div>
+ <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
+ <div>
+ <label>🎒 Held Item</label>
+ <input id="eItem" type="number" min="0" max="1023" readonly>
+ <div class="selected-lookup" id="selectedHeldItem" hidden>
+  <img id="selectedHeldItemImg">
+  <div><b id="selectedHeldItemName"></b><div class="small">Item ID: <span id="selectedHeldItemId"></span></div></div>
+ </div>
+ <input id="heldItemSearch" type="text" placeholder="ค้นหาไอเทม..." style="margin-top:6px">
+ <div id="heldItemPicker" class="lookup-grid" style="max-height:180px"></div>
+</div>
+ <div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
+</div>
+
+<h3 style="margin-top:14px">⭐ IV</h3>
+<div class="statgrid">
+<label>HP<input id="iv0" type="number" min="0" max="31" value="31"></label>
+<label>Atk<input id="iv1" type="number" min="0" max="31" value="31"></label>
+<label>Def<input id="iv2" type="number" min="0" max="31" value="31"></label>
+<label>Spe<input id="iv3" type="number" min="0" max="31" value="31"></label>
+<label>SpA<input id="iv4" type="number" min="0" max="31" value="31"></label>
+<label>SpD<input id="iv5" type="number" min="0" max="31" value="31"></label>
+</div>
+
+<h3 style="margin-top:14px">EV</h3>
+<div class="statgrid">
+<label>HP<input id="ev0" type="number" min="0" max="252" value="0"></label>
+<label>Atk<input id="ev1" type="number" min="0" max="252" value="252"></label>
+<label>Def<input id="ev2" type="number" min="0" max="252" value="0"></label>
+<label>Spe<input id="ev3" type="number" min="0" max="252" value="252"></label>
+<label>SpA<input id="ev4" type="number" min="0" max="252" value="0"></label>
+<label>SpD<input id="ev5" type="number" min="0" max="252" value="0"></label>
+</div>
+
+<h3 style="margin-top:14px">⚔️ Moves</h3>
+<p class="small">เลือกชื่อท่าแทนการกรอก Move ID — ระบบจะเก็บ ID ไว้เบื้องหลัง</p>
+<div id="movePickers"></div>
+
+<div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
+</div>
+</div>
+
 <script>
-(async function(){
-  try {
-    var source='https://raw.githubusercontent.com/teemoon2903-sys/pksg/e507827ede8c38c8fb274200abd0aef65e00d6d4/index.html';
-    var r=await fetch(source+'?cache='+Date.now(),{cache:'no-store'});
-    if(!r.ok) throw new Error('โหลด PKSG ต้นฉบับไม่สำเร็จ HTTP '+r.status);
-    var html=await r.text();
+const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
-    /* PKSG SAVE FIX: preserve the complete 3968-byte section payload. */
-    var ra=html.indexOf('function rebuild(){');
-    var rb=html.indexOf('function exportSave(){',ra);
-    if(ra<0||rb<0) throw new Error('ไม่พบ Save rebuild/export ของ PKSG ต้นฉบับ');
-    var fixedRebuild=`function rebuild(){
-      const out=bytes.slice(),sourceBase=slot.base,targetBase=sourceBase===0?14:0,counter=(slot.counter+1)>>>0,order=[];
-      for(let i=0;i<14;i++){const po=(sourceBase+i)*SECTOR,id=u16(bytes,po+4084);if(id<14)order.push(id)}
-      if(order.length!==14||new Set(order).size!==14)throw new Error("ไม่พบ 14 sectors ของ Save Slot");
-      const rotated=[order[order.length-1],...order.slice(0,-1)];
-      for(let physical=0;physical<14;physical++){
-        const id=rotated[physical],po=(targetBase+physical)*SECTOR;
-        const meta=slot.ss.find(x=>x.id===id);
-        const size=(meta&&meta.size)||SIZE[id]||DATA;
-        const sourcePhysical=sourceBase+meta.p;
-        const full=bytes.slice(sourcePhysical*SECTOR,sourcePhysical*SECTOR+DATA);
-        const edited=sec(id);
-        full.set(edited.slice(0,Math.min(edited.length,DATA)),0);
-        out.fill(0,po,po+SECTOR);
-        out.set(full,po);
-        w16(out,po+4084,id);
-        w16(out,po+4086,csum(full.slice(0,size)));
-        w32(out,po+4088,SIG);
-        w32(out,po+4092,counter);
-      }
-      return out
-    }
-`;
-    html=html.slice(0,ra)+fixedRebuild+html.slice(rb);
+const DEX_NAMES={
+1:"Bulbasaur",2:"Ivysaur",3:"Venusaur",4:"Charmander",5:"Charmeleon",6:"Charizard",
+7:"Squirtle",8:"Wartortle",9:"Blastoise",25:"Pikachu",133:"Eevee",196:"Espeon",
+197:"Umbreon",248:"Tyranitar",249:"Lugia",250:"Ho-Oh",251:"Celebi",254:"Sceptile",
+257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",
+448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
+908:"Meowscarada",911:"Skeledirge",914:"Quaquaval",936:"Armarouge",937:"Ceruledge",
+1007:"Koraidon",1008:"Miraidon",1325:"Ceruledge"
+};
 
-    var a=html.indexOf('function exportSave(){');
-    var b=html.indexOf('function backup(){',a);
-    if(a<0||b<0) throw new Error('ไม่พบฟังก์ชัน Export ของ PKSG ต้นฉบับ');
-    var fixedExport=`function exportSave(){
-      if(!bytes)return alert("ยังไม่ได้เปิดเซฟ");
-      try{
-        let same=!!original&&bytes.length===original.length;
-        if(same){for(let i=0;i<bytes.length;i++){if(bytes[i]!==original[i]){same=false;break}}}
-        let out=same?original.slice():rebuild();
-        let ext=(filename.match(/\\.(sav|srm|dat)$/i)||[".srm"])[0];
-        let outName=filename.replace(/\\.(sav|srm|dat)$/i,"")+ext;
-        dl(out,outName);
-        status.textContent=same?"✅ Export สำเร็จ • เซฟเดิมแบบ byte-for-byte":"✅ Export สำเร็จ • สร้าง Save ใหม่โดยรักษาข้อมูล Section ครบ 3968 bytes";
-      }catch(e){
-        console.error(e);
-        status.textContent="❌ Export ไม่สำเร็จ: "+(e&&e.message?e.message:e);
-        alert("Export ไม่สำเร็จ\\n\\n"+(e&&e.message?e.message:e));
-      }
-    }
-`;
-    html=html.slice(0,a)+fixedExport+html.slice(b);
+const SPECIES_TO_SPRITE={1325:937,937:937,936:936,908:908,911:911,914:914};
+const POKEMON_API_MAX=1025;
 
-    document.open();document.write(html);document.close();
-  } catch(e) {
-    document.getElementById('boot').textContent='❌ '+(e&&e.message?e.message:e);
+let bytes=null,original=null,filename="PKSG.srm",activeSlot=0,logical=null,current=null,dirty=false;
+let pokemonList=[];
+let pokemonLoaded=false;
+
+function fillNatures(){
+ for(const id of ["newNature","eNature"]){
+  const s=document.getElementById(id);
+  NATURES.forEach((n,i)=>{
+   let o=document.createElement("option");o.value=i;o.textContent=n;s.appendChild(o)
+  })
+ }
+}
+fillNatures();
+
+function u16(a,o){return a[o]|(a[o+1]<<8)}
+function u32(a,o){return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0}
+function w16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}
+function w32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
+
+function checksum(data){
+ let s=0;
+ for(let i=0;i<data.length;i+=4)s=(s+u32(data,i))>>>0;
+ return ((s&65535)+(s>>>16))&65535;
+}
+
+function parseSlots(){
+ const slots=[];
+ for(let base of [0,14]){
+  let sectors={};let counter=-1;
+  for(let i=0;i<14;i++){
+   let off=(base+i)*4096,id=u16(bytes,off+4084),c=u32(bytes,off+4092);
+   if(id<14){sectors[id]=bytes.slice(off,off+4080);counter=Math.max(counter,c)}
   }
+  let valid=Object.keys(sectors).length===14;
+  if(valid)slots.push({base,counter,sectors})
+ }
+ if(!slots.length)throw Error("ไม่พบ Save Slot ที่ครบ 14 sectors");
+ slots.sort((a,b)=>b.counter-a.counter);
+ return slots[0];
+}
+
+function buildLogical(slot){
+ let out=new Uint8Array(14*4080);
+ for(let i=0;i<14;i++)out.set(slot.sectors[i],i*4080);
+ return out;
+}
+
+function boxMonAt(box,slot){return 0x04+(box*30+slot)*80}
+
+const SHUF=[
+ [0,1,2,3],[0,1,3,2],[0,2,1,3],[0,3,1,2],[0,2,3,1],[0,3,2,1],
+ [1,0,2,3],[1,0,3,2],[2,0,1,3],[2,0,3,1],[3,0,1,2],[3,0,2,1],
+ [1,2,0,3],[1,3,0,2],[2,1,0,3],[3,1,0,2],[2,3,0,1],[3,2,0,1],
+ [1,2,3,0],[1,3,2,0],[2,1,3,0],[3,1,2,0],[2,3,1,0],[3,2,1,0]
+];
+const INV=[0,1,2,4,3,5,6,7,12,18,13,19,8,10,14,20,16,22,9,11,15,21,17,23];
+function crypt(a,seed){for(let o=0;o<a.length;o+=4){a[o]^=seed&255;a[o+1]^=seed>>>8&255;a[o+2]^=seed>>>16&255;a[o+3]^=seed>>>24&255}}
+function shuffle(a,sv){if(sv===0)return;let perm=[0,1,2,3],slotOf=[0,1,2,3],p=SHUF[sv];const swap=(x,y)=>{let A=a.slice(x*12,x*12+12),B=a.slice(y*12,y*12+12);a.set(B,x*12);a.set(A,y*12)};for(let i=0;i<3;i++){let desired=p[i],j=slotOf[desired];if(j===i)continue;swap(i,j);let blockAtI=perm[i];perm[j]=blockAtI;slotOf[blockAtI]=j}}
+function decryptMon(raw){let a=raw.slice(0,80),pid=u32(a,0),ot=u32(a,4),enc=a.slice(32,80);crypt(enc,pid^ot);shuffle(enc,pid%24);a.set(enc,32);return a}
+function encryptMon(dec){let a=dec.slice(0,80),pid=u32(a,0),ot=u32(a,4),enc=a.slice(32,80);shuffle(enc,INV[pid%24]);crypt(enc,pid^ot);a.set(enc,32);return a}
+function pokemonChecksum(a){let sum=0;for(let o=32;o<80;o+=2)sum=(sum+u16(a,o))&65535;return sum}
+
+function readMonFrom(data,off,isParty=false){
+ const raw=data.slice(off,off+80),a=decryptMon(raw),pid=u32(a,0),ot=u32(a,4);
+ const species=u16(a,32),item=u16(a,34),exp=u32(a,36)&0xffffff;
+ const moves=[];for(let k=0;k<4;k++)moves.push(u16(a,44+k*2));
+ const ev=[a[56],a[57],a[58],a[59],a[60],a[61]];
+ const ivd=u32(a,68);const iv=[ivd&31,(ivd>>>5)&31,(ivd>>>10)&31,(ivd>>>15)&31,(ivd>>>20)&31,(ivd>>>25)&31];
+ const nature=(pid%25)^((a[18]>>>3)&31);
+ const shiny=((pid^ot)>>>0)<8?1:0;
+ const level=isParty?Math.max(1,Math.min(100,data[off+84]||levelFromExp(exp))):Math.max(1,levelFromExp(exp));
+ return {off,pid,ot,species,item,exp,moves,iv,ev,nature,shiny,level,raw};
+}
+
+function writeMon(m,old){
+ let a=decryptMon(old),pid=u32(a,0),ot=u32(a,4);
+ if(!pid){crypto.getRandomValues(a.subarray(0,8));pid=u32(a,0);ot=u32(a,4)}
+ w16(a,32,m.species);w16(a,34,m.item);w32(a,36,(u32(a,36)&0xff000000)|(expForLevel(m.level)&0xffffff));
+ a[18]=(a[18]&7)|(((m.nature^(pid%25))&31)<<3);
+ for(let i=0;i<4;i++)w16(a,44+i*2,m.moves[i]||0);
+ for(let i=0;i<6;i++)a[56+i]=Math.max(0,Math.min(252,m.ev[i]||0));
+ let ivd=u32(a,68);for(let i=0;i<6;i++)ivd=(ivd&~(31<<(i*5)))|((Math.max(0,Math.min(31,m.iv[i]||0)))<<(i*5));w32(a,68,ivd);
+ w16(a,28,pokemonChecksum(a));
+ return encryptMon(a);
+}
+
+function levelFromExp(exp){
+ // Medium-Slow growth is used by Fennekin and is the default for this editor.
+ // Use the exact Gen-III/IV lookup formula rather than a cube-root approximation.
+ let best=1;
+ for(let l=1;l<=100;l++){
+  if(exp>=expForLevel(l)) best=l; else break;
+ }
+ return best;
+}
+
+function getPartyData(){
+ const sb=logical.slice(4080,4080*5);
+ let count=sb[0x234],mons=[];
+ for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
+ return {sb,count,mons};
+}
+
+function sprite(id){
+ return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+(SPECIES_TO_SPRITE[id]||id)+".png";
+}
+
+function name(id){
+ return DEX_NAMES[id]||("Species #"+id);
+}
+
+function render(){
+ if(!bytes)return;
+ const p=getPartyData();
+ document.getElementById("partyCount").value=p.count;
+ document.getElementById("money").value=u32(p.sb,0x490);
+ const pg=document.getElementById("partyGrid");
+ pg.innerHTML="";
+ for(let i=0;i<6;i++){
+  let m=p.mons[i],d=document.createElement("div");
+  d.className="slot "+(m.species?"":"empty");
+  d.innerHTML=m.species
+   ?`<img src="${sprite(m.species)}"><b>${name(m.species)}</b><div>Lv.${m.level}</div>`
+   :"<div style='height:75px;display:grid;place-items:center'>—</div><b>ว่าง</b>";
+  d.onclick=()=>m.species&&openEditor("party",i);
+  pg.appendChild(d)
+ }
+ renderBox();renderItems();
+ document.getElementById("status").textContent=
+  `โหลดแล้ว • Save slot ${activeSlot+1} • Counter ${current.counter}\nParty ${p.count}/6 • PC 14 กล่อง × 30 ช่อง`;
+}
+
+function saveblock1(){return logical.slice(4080,4080+4*4080)}
+function writeSB1(sb){
+ for(let i=0;i<4;i++)logical.set(sb.slice(i*4080,(i+1)*4080),4080+i*4080)
+}
+function applyGeneral(){
+ let sb=saveblock1();
+ sb[0x234]=+document.getElementById("partyCount").value;
+ w32(sb,0x490,Math.min(9999999,+document.getElementById("money").value));
+ writeSB1(sb);dirty=true;render()
+}
+
+function openEditor(where,index){
+ let sb=where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let off=where==="party"?0x238+index*100:4+(current.box*30+index)*80;
+ let m=readMonFrom(sb,off,where==="party");
+ current.edit={where,index,off,m};
+ document.getElementById("eSpecies").value=m.species;
+ document.getElementById("eLevel").value=m.level;
+ document.getElementById("eNature").value=m.nature%25;
+ document.getElementById("eAbility").value=0;
+ document.getElementById("eItem").value=m.item;
+ document.getElementById("eShiny").value=m.shiny;
+ m.iv.forEach((v,i)=>document.getElementById("iv"+i).value=v);
+ m.ev.forEach((v,i)=>document.getElementById("ev"+i).value=v);
+ m.moves.forEach((v,i)=>document.getElementById("mv"+i).value=v);
+ document.getElementById("eName").textContent=name(m.species);
+ document.getElementById("eMeta").textContent=`Species ID ${m.species} • PID ${m.pid.toString(16)}`;
+ document.getElementById("eSprite").src=sprite(m.species);
+ document.getElementById("editorPokemonSearch").value="";
+ renderEditorPokemonPicker();
+ document.getElementById("editor").classList.add("show");
+}
+
+function closeEditor(){document.getElementById("editor").classList.remove("show")}
+
+function patchBox(raw,vals){
+ return writeMon({species:+vals.species,item:+vals.item,nature:+vals.nature,level:+vals.level,iv:vals.iv,ev:vals.ev,moves:vals.moves},raw);
+}
+
+function w16v(x,start,bits,val){
+ let mask=((1<<bits)-1)<<start;
+ return (x&~mask)|((val&((1<<bits)-1))<<start)
+}
+
+function applyMon(){
+ const e=current.edit;
+ const level=Math.max(1,Math.min(100,+document.getElementById("eLevel").value));
+ const vals={species:+document.getElementById("eSpecies").value,item:+document.getElementById("eItem").value,nature:+document.getElementById("eNature").value,shiny:+document.getElementById("eShiny").value,level,iv:[],ev:[],moves:[]};
+ for(let i=0;i<6;i++){vals.iv.push(+document.getElementById("iv"+i).value);vals.ev.push(+document.getElementById("ev"+i).value)}
+ for(let i=0;i<4;i++)vals.moves.push(+(document.getElementById("mv"+i)?.value||0));
+ let sb=e.where==="party"?saveblock1():logical.slice(5*4080,14*4080);
+ let raw=sb.slice(e.off,e.off+80),out=patchBox(raw,vals);
+ sb.set(out,e.off);
+ if(e.where==="party"){sb[e.off+84]=level;writeSB1(sb)}else{logical.set(sb,5*4080)}
+ dirty=true;closeEditor();render();document.getElementById("status").textContent+="\nแก้ Pokémon แล้ว — พร้อม Export";
+}
+
+function renderBox(){
+ const sel=document.getElementById("boxSelect");
+ if(!sel.options.length){for(let i=0;i<14;i++){let o=document.createElement("option");o.value=i;o.textContent="Box "+(i+1);sel.appendChild(o)}}
+ current.box=+sel.value;
+ const grid=document.getElementById("boxGrid");grid.innerHTML="";
+ const storage=logical.slice(5*4080,14*4080);
+ for(let i=0;i<30;i++){
+   let m=readMonFrom(storage,boxMonAt(current.box,i));
+   let d=document.createElement("div");d.className="slot boxslot "+(m.species?"":"empty");
+   d.innerHTML=m.species?`<img src="${sprite(m.species)}"><b>${name(m.species)}</b><div>Lv.${m.level}</div>`:`<div style='height:75px'>—</div><small>${i+1}</small>`;
+   d.onclick=()=>{if(m.species)openEditor("box",i);else document.getElementById("boxSlot").value=i+1};grid.appendChild(d);
+ }
+}
+document.getElementById("boxSelect").onchange=renderBox;
+
+function createPCMon(){
+ let box=+document.getElementById("boxSelect").value,slot=+document.getElementById("boxSlot").value-1,sp=+document.getElementById("newSpecies").value,lv=+document.getElementById("newLevel").value,nat=+document.getElementById("newNature").value;
+ if(!sp||sp<1||sp>2047){alert("กรุณาเลือก Pokémon ก่อน");return}
+ if(slot<0||slot>29){alert("ช่อง PC ต้องอยู่ระหว่าง 1-30");return}
+ let storage=logical.slice(5*4080,14*4080),off=boxMonAt(box,slot),raw=new Uint8Array(80),m={species:sp,item:0,nature:nat,level:lv,iv:[31,31,31,31,31,31],ev:[0,0,0,0,0,0],moves:[0,0,0,0]},out=writeMon(m,raw);
+ storage.set(out,off);logical.set(storage,5*4080);dirty=true;render();document.getElementById("status").textContent=`สร้าง ${name(sp)} Lv.${lv} ที่ Box ${box+1} ช่อง ${slot+1}`;
+}
+
+function expForLevel(l){
+ let n=Math.max(1,Math.min(100,l));
+ return Math.max(0,Math.floor(6*n*n*n/5-15*n*n+100*n-140))
+}
+
+function renderItems(){
+ const sb=saveblock1(),list=document.getElementById("itemList");
+ list.innerHTML="";
+ for(let i=0;i<186;i++){
+  let o=0x560+i*4,id=u16(sb,o),q=u16(sb,o+2);
+  if(id||q){
+   let d=document.createElement("div");
+   d.className="itemrow";
+   d.innerHTML=`<span>Slot ${i} • Item ID <b>${id}</b></span><span>${q}</span>
+   <button class="secondary" onclick="document.getElementById('itemSlot').value=${i};document.getElementById('itemId').value=${id};document.getElementById('itemQty').value=${q}">แก้</button>`;
+   list.appendChild(d)
+  }
+ }
+}
+
+function setItem(){
+ let sb=saveblock1(),
+ i=+document.getElementById("itemSlot").value,
+ o=0x560+i*4;
+ w16(sb,o,+document.getElementById("itemId").value);
+ w16(sb,o+2,+document.getElementById("itemQty").value);
+ writeSB1(sb);dirty=true;renderItems();
+ document.getElementById("status").textContent=`Item slot ${i} updated`
+}
+
+function rebuildSave(){
+ const out=bytes.slice(),slot=current;
+ // 14 boxes × 30 slots × 80 bytes + 4-byte storage header = 33,604 bytes.
+ // Eight full 3968-byte sectors + 1860 bytes in Section 13.
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ for(let physical=0;physical<14;physical++){
+   const po=(slot.base+physical)*4096,id=u16(bytes,po+4084);if(id<0||id>=14)continue;
+   const size=SECTION_SIZES[id],data=logical.slice(id*4080,id*4080+size);
+   out.set(data,po);
+   for(let z=size;z<3968;z++)out[po+z]=bytes[po+z];
+   w16(out,po+4084,id);w16(out,po+4086,checksum(data));w32(out,po+4088,0x08012025);w32(out,po+4092,slot.counter);
+ }
+ return out;
+}
+function validateBuffer(b,base){
+ const SECTION_SIZES={0:3884,1:3968,2:3968,3:3968,4:3848,5:3968,6:3968,7:3968,8:3968,9:3968,10:3968,11:3968,12:3968,13:2000};
+ const problems=[],ids=new Set();if(!b||b.length!==131072)return {ok:false,message:"ขนาดไฟล์ไม่ใช่ 128 KiB"};
+ for(let physical=0;physical<14;physical++){
+   const po=(base+physical)*4096,id=u16(b,po+4084),stored=u16(b,po+4086),sig=u32(b,po+4088);
+   if(sig!==0x08012025){problems.push("physical "+physical+": signature ผิด");continue}
+   if(id<0||id>=14){problems.push("physical "+physical+": sector ID ผิด");continue}
+   ids.add(id);if(checksum(b.slice(po,po+SECTION_SIZES[id]))!==stored)problems.push("sector "+id+": checksum ผิด");
+ }
+ if(ids.size!==14)problems.push("sector ID ไม่ครบ 0–13");return {ok:problems.length===0,message:problems.join("; ")};
+}
+function exportSave(){
+ if(!bytes||!logical||!current){document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";return}
+ try{
+   // No edit = exact byte-for-byte copy. This removes the old corruption path entirely.
+   const out=dirty?rebuildSave():original.slice(),check=validateBuffer(out,current.base);if(!check.ok)throw Error(check.message);
+   dl(out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");document.getElementById("status").textContent=dirty?"✅ Export สำเร็จ • 14/14 sector + checksum ผ่าน":"✅ Export สำเร็จ • ไม่มีการแก้ไข • คัดลอกต้นฉบับ byte-for-byte";
+ }catch(e){document.getElementById("status").textContent="❌ Export ถูกยกเลิก: "+e.message}
+}
+function exportBackup(){if(original)dl(original,filename.replace(/\.(sav|srm|dat)$/i,"")+"_BACKUP.srm")}
+function validateSave(silent=false){
+ const diag=document.getElementById("saveDiagnostics");if(!bytes||!current||!logical){if(diag)diag.textContent="❌ ยังไม่ได้เปิดเซฟ";return {ok:false,message:"ยังไม่ได้เปิดเซฟ"}}
+ const r=validateBuffer(bytes,current.base),msg=r.ok?"✅ Save Slot ผ่านการตรวจสอบ\nSector ครบ 14/14\nChecksum ผ่าน 14/14\nCounter "+current.counter+"\nSection 13 = 2000 bytes":"❌ พบปัญหาใน Save Slot\n"+r.message;
+ if(diag)diag.textContent=msg;if(!silent)document.getElementById("status").textContent=msg;return r;
+}
+
+/* =========================
+   Pokémon picker
+   */
+
+function pokemonDisplayName(n){
+ return n.split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ")
+}
+
+function pokemonSprite(id){
+ return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+(SPECIES_TO_SPRITE[id]||id)+".png"
+}
+
+function ensureCustomPokemon(){
+ const custom=[
+  {id:1325,name:"Ceruledge"},
+  {id:1326,name:"Armarouge"}
+ ];
+ for(const p of custom){
+  if(!pokemonList.some(x=>x.id===p.id))pokemonList.push(p)
+ }
+}
+
+async function loadPokemonList(){
+ const picker=document.getElementById("pokemonPicker");
+ try{
+  const res=await fetch("https://pokeapi.co/api/v2/pokemon?limit="+POKEMON_API_MAX);
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  const data=await res.json();
+
+  pokemonList=data.results.map((p,index)=>({
+   id:index+1,
+   name:p.name
+  }));
+
+  ensureCustomPokemon();
+  pokemonLoaded=true;
+  renderPokemonPicker();
+  renderEditorPokemonPicker();
+ }catch(e){
+  /* fallback to the names already included in this HTML */
+  pokemonList=Object.entries(DEX_NAMES).map(([id,n])=>({
+   id:+id,
+   name:n.toLowerCase().replace(/ /g,"-")
+  }));
+  ensureCustomPokemon();
+  renderPokemonPicker();
+  renderEditorPokemonPicker();
+  picker.innerHTML+=`<div class="picker-status">⚠️ โหลดรายชื่อเต็มไม่ได้ — แสดงรายชื่อที่มีในตัวโปรแกรม</div>`;
+ }
+}
+
+function filterPokemon(search){
+ search=(search||"").trim().toLowerCase();
+ return pokemonList.filter(p=>{
+  const display=pokemonDisplayName(p.name).toLowerCase();
+  return !search ||
+    p.name.toLowerCase().includes(search) ||
+    display.includes(search) ||
+    String(p.id)===search
+ }).slice(0,150);
+}
+
+function makePokemonCard(p,onSelect){
+ const d=document.createElement("div");
+ d.className="pokemon-card";
+ d.dataset.id=p.id;
+ d.innerHTML=`
+  <img src="${pokemonSprite(p.id)}" loading="lazy" onerror="this.style.opacity='.25'">
+  <b>${pokemonDisplayName(p.name)}</b>
+  <small>#${p.id}</small>
+ `;
+ d.onclick=()=>onSelect(p,d);
+ return d;
+}
+
+function selectPokemon(p,card){
+ document.getElementById("speciesId").value=p.id;
+ document.getElementById("newSpecies").value=p.id;
+
+ document.getElementById("selectedPokemon").hidden=false;
+ document.getElementById("selectedPokemonImg").src=pokemonSprite(p.id);
+ document.getElementById("selectedPokemonName").textContent=pokemonDisplayName(p.name);
+ document.getElementById("selectedPokemonId").textContent=p.id;
+
+ document.querySelectorAll("#pokemonPicker .pokemon-card")
+  .forEach(x=>x.classList.remove("selected"));
+ if(card)card.classList.add("selected");
+}
+
+function renderPokemonPicker(){
+ const picker=document.getElementById("pokemonPicker");
+ if(!picker)return;
+ picker.innerHTML="";
+ const search=document.getElementById("pokemonSearch")?.value||"";
+ const list=filterPokemon(search);
+
+ if(!list.length){
+  picker.innerHTML="<div class='picker-status'>ไม่พบ Pokémon</div>";
+  return
+ }
+
+ for(const p of list){
+  const card=makePokemonCard(p,selectPokemon);
+  if(+document.getElementById("speciesId").value===p.id)card.classList.add("selected");
+  picker.appendChild(card)
+ }
+}
+
+function selectEditorPokemon(p,card){
+ document.getElementById("eSpecies").value=p.id;
+ document.getElementById("eName").textContent=pokemonDisplayName(p.name);
+ document.getElementById("eSprite").src=pokemonSprite(p.id);
+ document.getElementById("eMeta").textContent=
+  `Species ID ${p.id} • PID ${current.edit?.m?.pid?.toString(16)||""}`;
+
+ document.querySelectorAll("#editorPokemonPicker .pokemon-card")
+  .forEach(x=>x.classList.remove("selected"));
+ if(card)card.classList.add("selected");
+}
+
+function renderEditorPokemonPicker(){
+ const picker=document.getElementById("editorPokemonPicker");
+ if(!picker)return;
+ picker.innerHTML="";
+ const search=document.getElementById("editorPokemonSearch")?.value||"";
+ const list=filterPokemon(search);
+
+ if(!list.length){
+  picker.innerHTML="<div class='picker-status'>ไม่พบ Pokémon</div>";
+  return
+ }
+
+ for(const p of list){
+  const card=makePokemonCard(p,selectEditorPokemon);
+  if(+document.getElementById("eSpecies").value===p.id)card.classList.add("selected");
+  picker.appendChild(card)
+ }
+}
+
+document.getElementById("pokemonSearch").addEventListener("input",renderPokemonPicker);
+document.getElementById("clearPokemonSearch").addEventListener("click",()=>{
+ document.getElementById("pokemonSearch").value="";
+ renderPokemonPicker()
+});
+document.getElementById("editorPokemonSearch").addEventListener("input",renderEditorPokemonPicker);
+
+document.getElementById("file").onchange=async e=>{
+ const f=e.target.files[0];
+ if(!f)return;
+ filename=f.name;
+ bytes=new Uint8Array(await f.arrayBuffer());
+ original=bytes.slice();
+
+ if(bytes.length!==131072){
+  document.getElementById("status").textContent=
+   "ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";
+  return
+ }
+
+ try{
+  current=parseSlots();
+  logical=buildLogical(current);
+  activeSlot=current.base===0?0:1;
+  document.getElementById("fileInfo").textContent=
+   `${filename} • 128 KiB • latest counter ${current.counter}`;
+  render()
+ }catch(err){
+  document.getElementById("status").textContent=
+   "อ่านเซฟไม่สำเร็จ: "+err.message
+ }
+};
+
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+ b.classList.add("active");
+ document.querySelectorAll(".panel").forEach(x=>x.hidden=true);
+ document.getElementById(b.dataset.tab).hidden=false;
+});
+
+/* =========================
+   Explicit iOS Save Loader
+   ========================= */
+(function(){
+ const input=document.getElementById('file'),
+ info=document.getElementById('fileInfo'),
+ status=document.getElementById('status'),
+ btn=document.getElementById('openSaveBtn');
+
+ if(!input||!btn)return;
+
+ const SECTOR=4096,DATA=3968,SIG=0x08012025;
+ const ru16=(a,o)=>a[o]|a[o+1]<<8;
+ const ru32=(a,o)=>(a[o]|a[o+1]<<8|a[o+2]<<16|a[o+3]<<24)>>>0;
+
+ function readSectors(b){
+  const list=[];
+  for(let i=0;i<b.length/SECTOR;i++){
+   const s=b.subarray(i*SECTOR,(i+1)*SECTOR);
+   if(ru32(s,4088)!==SIG)continue;
+   list.push({
+    physical:i,
+    id:ru16(s,4084),
+    stored:ru16(s,4086),
+    counter:ru32(s,4092),
+    data:s.slice(0,DATA)
+   })
+  }
+  return list
+ }
+
+ function choose(sectors){
+  const groups=new Map();
+  for(const x of sectors){
+   const k=x.counter;
+   if(!groups.has(k))groups.set(k,[]);
+   groups.get(k).push(x)
+  }
+  return [...groups.entries()]
+   .sort((a,b)=>b[0]-a[0])
+   .map(([counter,list])=>({
+    counter,list,ids:new Set(list.map(x=>x.id))
+   }))
+   .find(x=>[...Array(14).keys()].every(id=>x.ids.has(id)))||null
+ }
+
+ async function openSave(){
+  const f=input.files&&input.files[0];
+  if(!f){
+   status.textContent='❌ ยังไม่ได้เลือกไฟล์เซฟ';
+   return
+  }
+
+  status.className='status';
+  status.textContent='⏳ กำลังอ่าน '+f.name+' ...';
+  info.textContent=f.name+' • '+f.size.toLocaleString()+' bytes';
+
+  try{
+   const b=new Uint8Array(await f.arrayBuffer());
+   if(b.length!==131072)
+    throw new Error('ต้องเป็นเซฟ 128 KiB (131072 bytes) แต่ไฟล์นี้มี '+b.length+' bytes');
+
+   const sectors=readSectors(b);
+   if(!sectors.length)
+    throw new Error('ไม่พบ Save Sector Signature 0x08012025');
+
+   const slot=choose(sectors);
+   if(!slot)
+    throw new Error('พบ sector แต่ไม่พบชุด Save Slot ครบ 14 sector');
+
+   const map=new Map();
+   for(const x of slot.list)if(!map.has(x.id))map.set(x.id,x);
+
+   window.PKSG_REAL_SAVE={bytes:b,sectors,slot,map,filename:f.name};
+
+   /* sync the main editor state */
+   bytes=b;
+   original=b.slice();
+   filename=f.name;
+   current={
+    base:slot.list.some(x=>x.physical<14)?0:14,
+    counter:slot.counter,
+    sectors:Object.fromEntries([...map].map(([id,x])=>[id,x.data]))
+   };
+   activeSlot=current.base===0?0:1;
+   logical=buildLogical(current);
+
+   info.textContent=f.name+' • 128 KiB • Save Counter '+slot.counter;
+   status.textContent='✅ เปิดเซฟสำเร็จ • '+map.size+'/14 sectors • Counter '+slot.counter;
+
+   render()
+  }catch(e){
+   status.className='status danger';
+   status.textContent='❌ เปิดเซฟไม่สำเร็จ: '+e.message;
+   console.error(e)
+  }
+ }
+
+ input.addEventListener('change',openSave);
+ input.addEventListener('input',openSave);
+ btn.addEventListener('click',openSave);
+ window.PKSG_openSelectedSave=openSave;
 })();
-</script></body></html>
+
+/* Start Pokémon picker */
+loadPokemonList();
+</script>
+
+<script>
+/* =========================
+   Move + Item name pickers
+   ========================= */
+let moveList=[], itemListData=[];
+let moveLoaded=false, itemLoaded=false;
+
+function apiDisplayName(name){
+  return String(name||"").split("-").map(x=>x?x.charAt(0).toUpperCase()+x.slice(1):x).join(" ");
+}
+function moveSprite(id){
+  /* Moves do not have official PokeAPI item-like sprites; use a small icon instead. */
+  return "";
+}
+function itemSprite(id){
+  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+String(itemListData.find(x=>x.id===id)?.name||"")+" .png".replace(" ","");
+}
+
+function filterLookup(list, search){
+  search=(search||"").trim().toLowerCase();
+  return list.filter(x=>{
+    const n=apiDisplayName(x.name).toLowerCase();
+    return !search || n.includes(search) || x.name.toLowerCase().includes(search) || String(x.id)===search;
+  }).slice(0,120);
+}
+
+async function loadMoveList(){
+  const host=document.getElementById("movePickers");
+  if(!host)return;
+  try{
+    const res=await fetch("https://pokeapi.co/api/v2/move?limit=1000");
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    moveList=data.results.map((x,i)=>({id:i+1,name:x.name}));
+    moveLoaded=true;
+    renderAllMovePickers();
+  }catch(e){
+    moveList=[
+      {id:1,name:"Pound"},{id:14,name:"Swords Dance"},{id:15,name:"Cut"},
+      {id:33,name:"Tackle"},{id:34,name:"Body Slam"},{id:85,name:"Thunderbolt"},
+      {id:86,name:"Thunder Wave"},{id:89,name:"Earthquake"},{id:94,name:"Psychic"},
+      {id:95,name:"Hypnosis"},{id:104,name:"Double Team"},{id:126,name:"Fire Blast"},
+      {id:148,name:"Sludge Bomb"},{id:156,name:"Rest"},{id:173,name:"Leer"},
+      {id:213,name:"Attract"},{id:216,name:"Return"},{id:249,name:"Rock Smash"},
+      {id:258,name:"Hidden Power"},{id:264,name:"Focus Punch"}
+    ];
+    renderAllMovePickers();
+    if(host)host.insertAdjacentHTML("beforeend","<div class='picker-status'>⚠️ โหลดรายชื่อท่าเต็มไม่ได้ — แสดงรายการสำรอง</div>");
+  }
+}
+
+function makeMovePicker(index, initialId){
+  const wrap=document.createElement("div");
+  wrap.className="move-picker card";
+  wrap.style.margin="7px 0";
+  wrap.innerHTML=`
+    <label>ท่า ${index+1}</label>
+    <div class="move-picker-row">
+      <input type="text" id="mvSearch${index}" placeholder="ค้นหาชื่อท่า เช่น Thunderbolt">
+      <input type="hidden" id="mv${index}" value="${initialId||0}">
+      <span class="small" id="mvId${index}">ID ${initialId||0}</span>
+    </div>
+    <div id="mvList${index}" class="move-picker-list"></div>`;
+  return wrap;
+}
+
+function renderMovePicker(index){
+  const listHost=document.getElementById("mvList"+index);
+  if(!listHost)return;
+  const search=document.getElementById("mvSearch"+index)?.value||"";
+  const currentId=+(document.getElementById("mv"+index)?.value||0);
+  const list=filterLookup(moveList,search);
+  listHost.innerHTML="";
+  if(!list.length){listHost.innerHTML="<div class='picker-status'>ไม่พบชื่อท่า</div>";return}
+  list.forEach(m=>{
+    const d=document.createElement("div");
+    d.className="move-card"+(m.id===currentId?" selected":"");
+    d.innerHTML=`<b>${apiDisplayName(m.name)}</b><small>ID ${m.id}</small>`;
+    d.onclick=()=>{
+      document.getElementById("mv"+index).value=m.id;
+      document.getElementById("mvSearch"+index).value=apiDisplayName(m.name);
+      document.getElementById("mvId"+index).textContent="ID "+m.id;
+      renderMovePicker(index);
+    };
+    listHost.appendChild(d);
+  });
+}
+
+function renderAllMovePickers(){
+  const host=document.getElementById("movePickers");
+  if(!host)return;
+  const old=[];
+  for(let i=0;i<4;i++)old.push(+(document.getElementById("mv"+i)?.value||0));
+  host.innerHTML="";
+  for(let i=0;i<4;i++){
+    host.appendChild(makeMovePicker(i,old[i]));
+  }
+  for(let i=0;i<4;i++){
+    document.getElementById("mvSearch"+i).addEventListener("input",()=>renderMovePicker(i));
+    const id=old[i];
+    const found=moveList.find(x=>x.id===id);
+    if(found)document.getElementById("mvSearch"+i).value=apiDisplayName(found.name);
+    renderMovePicker(i);
+  }
+}
+
+async function loadItemList(){
+  try{
+    const res=await fetch("https://pokeapi.co/api/v2/item?limit=2500");
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    itemListData=data.results.map((x,i)=>({id:i+1,name:x.name}));
+    itemLoaded=true;
+    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  }catch(e){
+    itemListData=[
+      {id:1,name:"master-ball"},{id:13,name:"potion"},{id:14,name:"antidote"},
+      {id:15,name:"burn-heal"},{id:17,name:"ice-heal"},{id:20,name:"full-heal"},
+      {id:25,name:"rare-candy"},{id:37,name:"elixir"},{id:50,name:"poke-ball"},
+      {id:68,name:"great-ball"},{id:70,name:"ultra-ball"},{id:84,name:"full-restore"},
+      {id:85,name:"max-potion"},{id:87,name:"hyper-potion"},{id:93,name:"revive"}
+    ];
+    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  }
+}
+
+function renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld){
+  const host=document.getElementById(pickerId);
+  if(!host)return;
+  const search=document.getElementById(searchId)?.value||"";
+  const currentId=+(document.getElementById(valueId)?.value||0);
+  const list=filterLookup(itemListData,search);
+  host.innerHTML="";
+  if(!list.length){host.innerHTML="<div class='picker-status'>ไม่พบ Item</div>";return}
+  list.forEach(it=>{
+    const d=document.createElement("div");
+    d.className="lookup-card"+(it.id===currentId?" selected":"");
+    d.innerHTML=`<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${it.name}.png" loading="lazy" onerror="this.style.opacity='.25'"><b>${apiDisplayName(it.name)}</b><small>#${it.id}</small>`;
+    d.onclick=()=>{
+      document.getElementById(valueId).value=it.id;
+      const s=document.getElementById(selectedId);
+      if(s){
+        s.hidden=false;
+        const img=s.querySelector("img");
+        const nm=s.querySelector("b");
+        const sid=s.querySelector("span");
+        if(img)img.src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+it.name+".png";
+        if(nm)nm.textContent=apiDisplayName(it.name);
+        if(sid)sid.textContent=it.id;
+      }
+      renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld);
+    };
+    host.appendChild(d);
+  });
+}
+
+function setupLookupEvents(){
+  const a=document.getElementById("itemSearch");
+  const ac=document.getElementById("clearItemSearch");
+  const h=document.getElementById("heldItemSearch");
+  if(a)a.addEventListener("input",()=>renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false));
+  if(ac)ac.addEventListener("click",()=>{
+    a.value="";renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
+  });
+  if(h)h.addEventListener("input",()=>renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true));
+}
+setupLookupEvents();
+renderAllMovePickers();
+loadMoveList();
+loadItemList();
+
+/* When opening a Pokémon editor, refresh the move/item displays from saved IDs. */
+const oldOpenEditor=window.openEditor;
+window.openEditor=function(where,index){
+  oldOpenEditor(where,index);
+  setTimeout(()=>{
+    if(moveLoaded)renderAllMovePickers();
+    if(itemLoaded)renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
+  },50);
+};
+
+/* Make applyMon read hidden move IDs exactly like the original editor. */
+const oldApplyMon=window.applyMon;
+window.applyMon=function(){
+  const valsMove=[];
+  for(let i=0;i<4;i++) valsMove.push(+(document.getElementById("mv"+i)?.value||0));
+
+  /* Temporarily expose the selected IDs through the original input shape. */
+  const host=document.getElementById("movePickers");
+  const originalHost=host?.innerHTML;
+  if(host){
+    const backup=[];
+    for(let i=0;i<4;i++){
+      const h=document.getElementById("mv"+i);
+      backup.push(h?.value||0);
+    }
+    /* Original applyMon in this build reads #mv0..#mv3.
+       Our hidden inputs already have those IDs, so no adaptation is needed. */
+  }
+  oldApplyMon();
+};
+</script>
+
+</body>
+</html>
