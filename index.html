@@ -41,7 +41,6 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 @media(max-width:500px){.statgrid{grid-template-columns:repeat(2,1fr)}}
 .itemrow{display:grid;grid-template-columns:1fr 100px 90px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #eee}
 
-/* Pokémon picker */
 .pokemon-picker-wrap{margin-top:12px}
 .pokemon-search-row{display:flex;gap:8px}
 .pokemon-search-row input{flex:1}
@@ -79,7 +78,6 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 }
 .selected-pokemon img{width:50px;height:50px;image-rendering:pixelated;object-fit:contain}
 
-/* Move / Item pickers */
 .lookup-box{margin-top:8px;padding:10px;border:1px solid #eee;border-radius:14px;background:#fafafa}
 .lookup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px;max-height:300px;overflow:auto}
 .lookup-card{border:2px solid transparent;border-radius:12px;padding:7px;text-align:center;background:#fff;cursor:pointer}
@@ -105,7 +103,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="wrap">
 <div class="head">
  <h1>🔥 PKSG</h1>
- <div class="sub">SoulGold GBA Save Editor — ROM-aware build</div>
+ <div class="sub">SoulGold GBA Save Editor — Corrected Romhack Species Table</div>
 </div>
 
 <div class="card">
@@ -145,7 +143,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="pokemon-picker-wrap">
  <label>🔍 ค้นหา Pokémon</label>
  <div class="pokemon-search-row">
-  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือ Wattrel">
+  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Miraidon หรือ Gouging Fire">
   <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
  </div>
 
@@ -165,7 +163,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid" style="margin-top:12px">
  <div>
   <label>Species ID</label>
-  <input id="speciesId" type="number" min="1" max="2047" value="1328" readonly>
+  <input id="speciesId" type="number" min="1" max="2047" value="1401" readonly>
  </div>
 </div>
 
@@ -177,7 +175,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid">
  <div>
   <label>Species ID</label>
-  <input id="newSpecies" type="number" min="1" max="2047" value="1328" readonly>
+  <input id="newSpecies" type="number" min="1" max="2047" value="1401" readonly>
  </div>
  <div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
  <div><label>Nature</label><select id="newNature"></select></div>
@@ -189,8 +187,6 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <section id="bag" class="panel" hidden>
 <div class="card"><h2>🎒 Bag / PC Items</h2>
-<p class="small">เลือกไอเทมด้วยชื่อและรูปได้เลย ส่วน Item ID จะถูกใส่อัตโนมัติ</p>
-
 <div class="lookup-box">
  <label>🔍 ค้นหา Item</label>
  <div class="pokemon-search-row">
@@ -219,11 +215,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <button class="primary" onclick="exportSave()">💾 Export .srm</button>
 <button class="secondary" onclick="exportBackup()">🛡 Backup original</button>
 <button class="secondary" onclick="validateSave()">🔎 ตรวจสอบเซฟ</button>
-<p class="small">ก่อน Export PKSG จะสร้างไฟล์จากข้อมูลใน Save Slot ที่เลือก และคำนวณ checksum ของ sector ที่เขียนกลับ</p>
 <div id="saveDiagnostics" class="status" style="margin-top:10px">ยังไม่ได้ตรวจสอบเซฟ</div>
-</div>
-<div class="card danger"><strong>สำคัญ</strong>
-<p>Species/Item IDs ต้องตรงกับ ROM รุ่นที่เปิดเซฟนี้อยู่ เว็บอ่านโครงสร้าง SoulGold expansion: Party offset 0x238, Money 0x490, PC items 0x498 และ PC 16 กล่อง/30 ช่อง; BoxPokemon ขนาด 76 ไบต์</p>
 </div>
 </section>
 </div>
@@ -244,7 +236,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 
 <div class="grid" style="margin-top:12px">
  <div><label>Species ID</label><input id="eSpecies" type="number" min="1" max="2047" readonly></div>
- <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"><div class="small">เมื่อเปลี่ยน Level ระบบจะปรับ EXP ให้ตรงกับ Level ด้วย</div></div>
+ <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
  <div>
@@ -281,7 +273,6 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 </div>
 
 <h3 style="margin-top:14px">⚔️ Moves</h3>
-<p class="small">เลือกชื่อท่าแทนการกรอก Move ID — ระบบจะเก็บ ID ไว้เบื้องหลัง</p>
 <div id="movePickers"></div>
 
 <div style="margin-top:15px"><button class="primary" onclick="applyMon()">✓ บันทึก Pokémon</button></div>
@@ -291,19 +282,19 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <script>
 const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky"];
 
-// Maps for ROM Species ID <-> PokeAPI Dex ID
-const ROM_TO_DEX = {
- 1325: 937, // Ceruledge
- 1326: 936, // Armarouge
- 1327: 941, // Kilowattrel
- 1328: 940  // Wattrel
-};
-
-const DEX_TO_ROM = {
- 937: 1325, // Ceruledge
- 936: 1326, // Armarouge
- 941: 1327, // Kilowattrel
- 940: 1328  // Wattrel
+/* Pokeemerald-expansion ID Mappings for Hisui and Gen 9 */
+const SPECIAL_SPECIES_MAPPING = {
+  // Hisui Forms
+  1008: { dexId: 724, name: "Decidueye-Hisui" },
+  1020: { dexId: 724, name: "Decidueye-Hisui" },
+  
+  // Gen 9 Legendaries & Paradox
+  1400: { dexId: 1007, name: "Koraidon" },
+  1401: { dexId: 1008, name: "Miraidon" },
+  1427: { dexId: 1020, name: "Gouging Fire" },
+  1428: { dexId: 1021, name: "Raging Bolt" },
+  1429: { dexId: 1022, name: "Iron Boulder" },
+  1430: { dexId: 1023, name: "Iron Crown" }
 };
 
 const DEX_NAMES={
@@ -312,16 +303,13 @@ const DEX_NAMES={
 197:"Umbreon",248:"Tyranitar",249:"Lugia",250:"Ho-Oh",251:"Celebi",254:"Sceptile",
 257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",
 448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
-908:"Meowscarada",911:"Skeledirge",914:"Quaquaval",936:"Armarouge",937:"Ceruledge",
-940:"Wattrel",941:"Kilowattrel",1325:"Ceruledge",1326:"Armarouge",1327:"Kilowattrel",1328:"Wattrel"
+1008:"Hisuian Decidueye",1020:"Hisuian Decidueye",1400:"Koraidon",1401:"Miraidon",
+1427:"Gouging Fire",1428:"Raging Bolt",1429:"Iron Boulder",1430:"Iron Crown"
 };
 
-const SPECIES_TO_SPRITE={1325:937,1326:936,1327:941,1328:940,940:940,941:941,937:937,936:936,908:908,911:911,914:914};
 const POKEMON_API_MAX=1025;
-
 let bytes=null,original=null,filename="PKSG.srm",activeSlot=0,logical=null,current=null,dirty=false;
 let pokemonList=[];
-let pokemonLoaded=false;
 
 function fillNatures(){
  for(const id of ["newNature","eNature"]){
@@ -349,8 +337,7 @@ function parseSlots(){
  const SIG=0x08012025, SECTOR=4096, OVERFLOW_SIZE=1324;
  for(const base of [0,14]){
   const sectors={};
-  let counter=null;
-  let ok=true;
+  let counter=null, ok=true;
   for(let physical=0;physical<14;physical++){
    const off=(base+physical)*SECTOR;
    const id=u16(bytes,off+4084), sig=u32(bytes,off+4088), c=u32(bytes,off+4092), stored=u16(bytes,off+4086);
@@ -364,14 +351,8 @@ function parseSlots(){
   }
   const overflowPhysical=30+(counter===null?((base===0)?0:1):(counter%2));
   const oo=overflowPhysical*SECTOR;
-  const overflowSig=u32(bytes,oo+4088);
-  const overflowCounter=u32(bytes,oo+4092);
-  const overflowStored=u16(bytes,oo+4086);
-  const overflowValid=counter!==null
-    && overflowSig===SIG
-    && u16(bytes,oo+4084)===overflowPhysical
-    && overflowCounter===counter
-    && checksum(bytes.slice(oo,oo+OVERFLOW_SIZE))===overflowStored;
+  const overflowSig=u32(bytes,oo+4088), overflowCounter=u32(bytes,oo+4092), overflowStored=u16(bytes,oo+4086);
+  const overflowValid=counter!==null && overflowSig===SIG && u16(bytes,oo+4084)===overflowPhysical && overflowCounter===counter && checksum(bytes.slice(oo,oo+OVERFLOW_SIZE))===overflowStored;
   if(ok && Object.keys(sectors).length===14){
    slots.push({base,counter,sectors,overflow:overflowValid?bytes.slice(oo,oo+OVERFLOW_SIZE):new Uint8Array(OVERFLOW_SIZE),overflowValid,overflowPhysical});
   }
@@ -435,11 +416,14 @@ function getPartyData(){
 }
 
 function sprite(id){
- const spriteId = SPECIES_TO_SPRITE[id] || ROM_TO_DEX[id] || id;
+ const mapped = SPECIAL_SPECIES_MAPPING[id];
+ const spriteId = mapped ? mapped.dexId : id;
  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+spriteId+".png";
 }
 
 function name(id){
+ const mapped = SPECIAL_SPECIES_MAPPING[id];
+ if(mapped) return mapped.name;
  return DEX_NAMES[id]||("Species #"+id);
 }
 
@@ -657,10 +641,8 @@ function sectorDataSize(id){
 
 function rebuildSave(){
  const out=bytes.slice();
- const oldBase=current.base;
  const newCounter=(current.counter+1)>>>0;
  const SIG=0x08012025, SECTOR=4096, DATA=3968;
-
  const targetBase=(newCounter % 2)===0 ? 0 : 14;
 
  for(let id=0;id<14;id++){
@@ -688,7 +670,7 @@ function rebuildSave(){
  w32(out,oo+4088,SIG);
  w32(out,oo+4092,newCounter);
 
- return {out,newCounter,targetBase,oldBase};
+ return {out,newCounter,targetBase};
 }
 
 function validateBuffer(b,base){
@@ -765,80 +747,45 @@ function validateSave(silent=false){
  return r;
 }
 
-/* Pokémon picker */
-function pokemonDisplayName(n){
- return n.split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ")
-}
-
-function pokemonSprite(id){
- return sprite(id);
-}
-
-function ensureCustomPokemon(){
- const custom=[
-  {id:1325, dexId:937, name:"ceruledge"},
-  {id:1326, dexId:936, name:"armarouge"},
-  {id:1327, dexId:941, name:"kilowattrel"},
-  {id:1328, dexId:940, name:"wattrel"}
- ];
- for(const p of custom){
-  const disp = pokemonDisplayName(p.name);
-  DEX_NAMES[p.id] = disp;
-  SPECIES_TO_SPRITE[p.id] = p.dexId;
-  if(!pokemonList.some(x=>x.id===p.id)){
-   pokemonList.push({id: p.id, dexId: p.dexId, name: p.name});
-  }
- }
-}
-
 async function loadPokemonList(){
- const picker=document.getElementById("pokemonPicker");
  try{
   const res=await fetch("https://pokeapi.co/api/v2/pokemon?limit="+POKEMON_API_MAX);
   if(!res.ok)throw new Error("HTTP "+res.status);
   const data=await res.json();
 
-  pokemonList=data.results.map((p,index)=>{
-   const dexId = index + 1;
-   const romId = DEX_TO_ROM[dexId] || dexId;
-   const disp = pokemonDisplayName(p.name);
-   
-   DEX_NAMES[romId] = disp;
-   DEX_NAMES[dexId] = disp;
-   if(ROM_TO_DEX[romId]) SPECIES_TO_SPRITE[romId] = ROM_TO_DEX[romId];
+  pokemonList=data.results.map((p,index)=>({
+   id: index + 1,
+   dexId: index + 1,
+   name: p.name
+  }));
 
-   return {
-    id: romId,
-    dexId: dexId,
-    name: p.name
-   };
+  Object.entries(SPECIAL_SPECIES_MAPPING).forEach(([spId, val])=>{
+   pokemonList.push({
+    id: +spId,
+    dexId: val.dexId,
+    name: val.name
+   });
   });
 
-  ensureCustomPokemon();
-  pokemonLoaded=true;
   renderPokemonPicker();
   renderEditorPokemonPicker();
   if(bytes) render();
  }catch(e){
   pokemonList=Object.entries(DEX_NAMES).map(([id,n])=>({
    id:+id,
-   dexId: ROM_TO_DEX[+id] || +id,
-   name:n.toLowerCase().replace(/ /g,"-")
+   dexId:+id,
+   name:n
   }));
-  ensureCustomPokemon();
   renderPokemonPicker();
   renderEditorPokemonPicker();
-  if(picker) picker.innerHTML+=`<div class="picker-status">⚠️ โหลดรายชื่อเต็มไม่ได้ — แสดงรายชื่อที่มีในตัวโปรแกรม</div>`;
  }
 }
 
 function filterPokemon(search){
  search=(search||"").trim().toLowerCase();
  return pokemonList.filter(p=>{
-  const display=pokemonDisplayName(p.name).toLowerCase();
   return !search ||
     p.name.toLowerCase().includes(search) ||
-    display.includes(search) ||
     String(p.id)===search ||
     (p.dexId && String(p.dexId)===search);
  }).slice(0,150);
@@ -850,8 +797,8 @@ function makePokemonCard(p,onSelect){
  d.dataset.id=p.id;
  d.innerHTML=`
   <img src="${sprite(p.id)}" loading="lazy" onerror="this.style.opacity='.25'">
-  <b>${pokemonDisplayName(p.name)}</b>
-  <small>#${p.id}</small>
+  <b>${p.name}</b>
+  <small>ID #${p.id}</small>
  `;
  d.onclick=()=>onSelect(p,d);
  return d;
@@ -863,7 +810,7 @@ function selectPokemon(p,card){
 
  document.getElementById("selectedPokemon").hidden=false;
  document.getElementById("selectedPokemonImg").src=sprite(p.id);
- document.getElementById("selectedPokemonName").textContent=pokemonDisplayName(p.name);
+ document.getElementById("selectedPokemonName").textContent=p.name;
  document.getElementById("selectedPokemonId").textContent=p.id;
 
  document.querySelectorAll("#pokemonPicker .pokemon-card")
@@ -892,7 +839,7 @@ function renderPokemonPicker(){
 
 function selectEditorPokemon(p,card){
  document.getElementById("eSpecies").value=p.id;
- document.getElementById("eName").textContent=pokemonDisplayName(p.name);
+ document.getElementById("eName").textContent=p.name;
  document.getElementById("eSprite").src=sprite(p.id);
  document.getElementById("eMeta").textContent=
   `Species ID ${p.id} • PID ${current.edit?.m?.pid?.toString(16)||""}`;
@@ -936,8 +883,7 @@ document.getElementById("file").onchange=async e=>{
  original=bytes.slice();
 
  if(bytes.length!==131072){
-  document.getElementById("status").textContent=
-   "ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";
+  document.getElementById("status").textContent="ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";
   return
  }
 
@@ -946,12 +892,10 @@ document.getElementById("file").onchange=async e=>{
   logical=buildLogical(current);
   dirty=false;
   activeSlot=current.base===0?0:1;
-  document.getElementById("fileInfo").textContent=
-   `${filename} • 128 KiB • latest counter ${current.counter}`;
+  document.getElementById("fileInfo").textContent=`${filename} • 128 KiB • latest counter ${current.counter}`;
   render()
  }catch(err){
-  document.getElementById("status").textContent=
-   "อ่านเซฟไม่สำเร็จ: "+err.message
+  document.getElementById("status").textContent="อ่านเซฟไม่สำเร็จ: "+err.message
  }
 };
 
@@ -962,279 +906,7 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
  document.getElementById(b.dataset.tab).hidden=false;
 });
 
-/* Explicit iOS Save Loader */
-(function(){
- const input=document.getElementById('file'),
- info=document.getElementById('fileInfo'),
- status=document.getElementById('status'),
- btn=document.getElementById('openSaveBtn');
-
- if(!input||!btn)return;
-
- const SECTOR=4096,DATA=3968,SIG=0x08012025;
- const ru16=(a,o)=>a[o]|a[o+1]<<8;
- const ru32=(a,o)=>(a[o]|a[o+1]<<8|a[o+2]<<16|a[o+3]<<24)>>>0;
-
- function readSectors(b){
-  const list=[];
-  for(let i=0;i<b.length/SECTOR;i++){
-   const s=b.subarray(i*SECTOR,(i+1)*SECTOR);
-   if(ru32(s,4088)!==SIG)continue;
-   list.push({physical:i,id:ru16(s,4084),stored:ru16(s,4086),counter:ru32(s,4092),data:s.slice(0,DATA)});
-  }
-  return list
- }
- function choose(sectors){
-  const candidates=[];
-  for(const base of [0,14]){
-   const group=sectors.filter(x=>x.physical>=base&&x.physical<base+14);
-   const ids=new Set(group.map(x=>x.id));
-   if([...Array(14).keys()].every(id=>ids.has(id))){
-    const counter=Math.max(...group.map(x=>x.counter));
-    const ov=sectors.find(x=>x.physical===(base===0?30:31));
-    candidates.push({counter,list:group,overflow:ov});
-   }
-  }
-  candidates.sort((a,b)=>b.counter-a.counter);
-  return candidates[0]||null;
- }
-
- async function openSave(){
-  const f=input.files&&input.files[0];
-  if(!f){
-   status.textContent='❌ ยังไม่ได้เลือกไฟล์เซฟ';
-   return
-  }
-
-  status.className='status';
-  status.textContent='⏳ กำลังอ่าน '+f.name+' ...';
-  info.textContent=f.name+' • '+f.size.toLocaleString()+' bytes';
-
-  try{
-   const b=new Uint8Array(await f.arrayBuffer());
-   if(b.length!==131072)
-    throw new Error('ต้องเป็นเซฟ 128 KiB (131072 bytes) แต่ไฟล์นี้มี '+b.length+' bytes');
-
-   bytes=b;
-   original=b.slice();
-   filename=f.name;
-   current=parseSlots();
-   logical=buildLogical(current);
-   dirty=false;
-   activeSlot=current.base===0?0:1;
-
-   window.PKSG_REAL_SAVE={
-    bytes:b,
-    filename:f.name,
-    slot:current,
-    overflowValid:current.overflowValid
-   };
-
-   info.textContent=f.name+' • 128 KiB • Save Counter '+current.counter;
-   status.textContent='✅ เปิดเซฟสำเร็จ • 14/14 sectors • Overflow '+(current.overflowValid?'ผ่าน':'ไม่พบ')+' • Counter '+current.counter;
-   render()
-  }catch(e){
-   status.className='status danger';
-   status.textContent='❌ เปิดเซฟไม่สำเร็จ: '+e.message;
-   console.error(e)
-  }
- }
-
- input.addEventListener('change',openSave);
- input.addEventListener('input',openSave);
- btn.addEventListener('click',openSave);
- window.PKSG_openSelectedSave=openSave;
-})();
-
 loadPokemonList();
 </script>
-
-<script>
-/* Move + Item name pickers */
-let moveList=[], itemListData=[];
-let moveLoaded=false, itemLoaded=false;
-
-function apiDisplayName(name){
-  return String(name||"").split("-").map(x=>x?x.charAt(0).toUpperCase()+x.slice(1):x).join(" ");
-}
-function moveSprite(id){
-  return "";
-}
-function itemSprite(id){
-  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+String(itemListData.find(x=>x.id===id)?.name||"")+".png";
-}
-
-function filterLookup(list, search){
-  search=(search||"").trim().toLowerCase();
-  return list.filter(x=>{
-    const n=apiDisplayName(x.name).toLowerCase();
-    return !search || n.includes(search) || x.name.toLowerCase().includes(search) || String(x.id)===search;
-  }).slice(0,120);
-}
-
-async function loadMoveList(){
-  const host=document.getElementById("movePickers");
-  if(!host)return;
-  try{
-    const res=await fetch("https://pokeapi.co/api/v2/move?limit=1000");
-    if(!res.ok)throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    moveList=data.results.map((x,i)=>({id:i+1,name:x.name}));
-    moveLoaded=true;
-    renderAllMovePickers();
-  }catch(e){
-    moveList=[
-      {id:1,name:"Pound"},{id:14,name:"Swords Dance"},{id:15,name:"Cut"},
-      {id:33,name:"Tackle"},{id:34,name:"Body Slam"},{id:85,name:"Thunderbolt"},
-      {id:86,name:"Thunder Wave"},{id:89,name:"Earthquake"},{id:94,name:"Psychic"},
-      {id:95,name:"Hypnosis"},{id:104,name:"Double Team"},{id:126,name:"Fire Blast"},
-      {id:148,name:"Sludge Bomb"},{id:156,name:"Rest"},{id:173,name:"Leer"},
-      {id:213,name:"Attract"},{id:216,name:"Return"},{id:249,name:"Rock Smash"},
-      {id:258,name:"Hidden Power"},{id:264,name:"Focus Punch"}
-    ];
-    renderAllMovePickers();
-    if(host)host.insertAdjacentHTML("beforeend","<div class='picker-status'>⚠️ โหลดรายชื่อท่าเต็มไม่ได้ — แสดงรายการสำรอง</div>");
-  }
-}
-
-function makeMovePicker(index, initialId){
-  const wrap=document.createElement("div");
-  wrap.className="move-picker card";
-  wrap.style.margin="7px 0";
-  wrap.innerHTML=`
-    <label>ท่า ${index+1}</label>
-    <div class="move-picker-row">
-      <input type="text" id="mvSearch${index}" placeholder="ค้นหาชื่อท่า เช่น Thunderbolt">
-      <input type="hidden" id="mv${index}" value="${initialId||0}">
-      <span class="small" id="mvId${index}">ID ${initialId||0}</span>
-    </div>
-    <div id="mvList${index}" class="move-picker-list"></div>`;
-  return wrap;
-}
-
-function renderMovePicker(index){
-  const listHost=document.getElementById("mvList"+index);
-  if(!listHost)return;
-  const search=document.getElementById("mvSearch"+index)?.value||"";
-  const currentId=+(document.getElementById("mv"+index)?.value||0);
-  const list=filterLookup(moveList,search);
-  listHost.innerHTML="";
-  if(!list.length){listHost.innerHTML="<div class='picker-status'>ไม่พบชื่อท่า</div>";return}
-  list.forEach(m=>{
-    const d=document.createElement("div");
-    d.className="move-card"+(m.id===currentId?" selected":"");
-    d.innerHTML=`<b>${apiDisplayName(m.name)}</b><small>ID ${m.id}</small>`;
-    d.onclick=()=>{
-      document.getElementById("mv"+index).value=m.id;
-      document.getElementById("mvSearch"+index).value=apiDisplayName(m.name);
-      document.getElementById("mvId"+index).textContent="ID "+m.id;
-      renderMovePicker(index);
-    };
-    listHost.appendChild(d);
-  });
-}
-
-function renderAllMovePickers(){
-  const host=document.getElementById("movePickers");
-  if(!host)return;
-  const old=[];
-  for(let i=0;i<4;i++)old.push(+(document.getElementById("mv"+i)?.value||0));
-  host.innerHTML="";
-  for(let i=0;i<4;i++){
-    host.appendChild(makeMovePicker(i,old[i]));
-  }
-  for(let i=0;i<4;i++){
-    document.getElementById("mvSearch"+i).addEventListener("input",()=>renderMovePicker(i));
-    const id=old[i];
-    const found=moveList.find(x=>x.id===id);
-    if(found)document.getElementById("mvSearch"+i).value=apiDisplayName(found.name);
-    renderMovePicker(i);
-  }
-}
-
-async function loadItemList(){
-  try{
-    const res=await fetch("https://pokeapi.co/api/v2/item?limit=2500");
-    if(!res.ok)throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    itemListData=data.results.map((x,i)=>({id:i+1,name:x.name}));
-    itemLoaded=true;
-    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
-    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
-  }catch(e){
-    itemListData=[
-      {id:1,name:"master-ball"},{id:13,name:"potion"},{id:14,name:"antidote"},
-      {id:15,name:"burn-heal"},{id:17,name:"ice-heal"},{id:20,name:"full-heal"},
-      {id:25,name:"rare-candy"},{id:37,name:"elixir"},{id:50,name:"poke-ball"},
-      {id:68,name:"great-ball"},{id:70,name:"ultra-ball"},{id:84,name:"full-restore"},
-      {id:85,name:"max-potion"},{id:87,name:"hyper-potion"},{id:93,name:"revive"}
-    ];
-    renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
-    renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
-  }
-}
-
-function renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld){
-  const host=document.getElementById(pickerId);
-  if(!host)return;
-  const search=document.getElementById(searchId)?.value||"";
-  const currentId=+(document.getElementById(valueId)?.value||0);
-  const list=filterLookup(itemListData,search);
-  host.innerHTML="";
-  if(!list.length){host.innerHTML="<div class='picker-status'>ไม่พบ Item</div>";return}
-  list.forEach(it=>{
-    const d=document.createElement("div");
-    d.className="lookup-card"+(it.id===currentId?" selected":"");
-    d.innerHTML=`<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${it.name}.png" loading="lazy" onerror="this.style.opacity='.25'"><b>${apiDisplayName(it.name)}</b><small>#${it.id}</small>`;
-    d.onclick=()=>{
-      document.getElementById(valueId).value=it.id;
-      const s=document.getElementById(selectedId);
-      if(s){
-        s.hidden=false;
-        const img=s.querySelector("img");
-        const nm=s.querySelector("b");
-        const sid=s.querySelector("span");
-        if(img)img.src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"+it.name+".png";
-        if(nm)nm.textContent=apiDisplayName(it.name);
-        if(sid)sid.textContent=it.id;
-      }
-      renderItemPicker(pickerId,searchId,valueId,selectedId,isHeld);
-    };
-    host.appendChild(d);
-  });
-}
-
-function setupLookupEvents(){
-  const a=document.getElementById("itemSearch");
-  const ac=document.getElementById("clearItemSearch");
-  const h=document.getElementById("heldItemSearch");
-  if(a)a.addEventListener("input",()=>renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false));
-  if(ac)ac.addEventListener("click",()=>{
-    a.value="";renderItemPicker("itemPicker","itemSearch","itemId","selectedItem",false);
-  });
-  if(h)h.addEventListener("input",()=>renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true));
-}
-setupLookupEvents();
-renderAllMovePickers();
-loadMoveList();
-loadItemList();
-
-const oldOpenEditor=window.openEditor;
-window.openEditor=function(where,index){
-  oldOpenEditor(where,index);
-  setTimeout(()=>{
-    if(moveLoaded)renderAllMovePickers();
-    if(itemLoaded)renderItemPicker("heldItemPicker","heldItemSearch","eItem","selectedHeldItem",true);
-  },50);
-};
-
-const oldApplyMon=window.applyMon;
-window.applyMon=function(){
-  const valsMove=[];
-  for(let i=0;i<4;i++) valsMove.push(+(document.getElementById("mv"+i)?.value||0));
-  oldApplyMon();
-};
-</script>
-
 </body>
 </html>
