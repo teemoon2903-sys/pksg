@@ -727,6 +727,18 @@ function validateBuffer(b,base){
  return {ok,message:problems.join("; "),counter,checksumOK,overflowOK};
 }
 
+function dl(data,name){
+ const blob=new Blob([data],{type:"application/octet-stream"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download=name;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
 function exportSave(){
  if(!bytes||!logical||!current){document.getElementById("status").textContent="❌ ยังไม่ได้เปิดเซฟ";return}
  try{
