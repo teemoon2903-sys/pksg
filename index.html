@@ -145,7 +145,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="pokemon-picker-wrap">
  <label>🔍 ค้นหา Pokémon</label>
  <div class="pokemon-search-row">
-  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือ Ceruledge">
+  <input id="pokemonSearch" type="text" placeholder="พิมพ์ชื่อ เช่น Pikachu หรือ Wattrel">
   <button class="secondary" type="button" id="clearPokemonSearch">ล้าง</button>
  </div>
 
@@ -165,7 +165,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid" style="margin-top:12px">
  <div>
   <label>Species ID</label>
-  <input id="speciesId" type="number" min="1" max="2047" value="1325" readonly>
+  <input id="speciesId" type="number" min="1" max="2047" value="1328" readonly>
  </div>
 </div>
 
@@ -177,7 +177,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <div class="grid">
  <div>
   <label>Species ID</label>
-  <input id="newSpecies" type="number" min="1" max="2047" value="1325" readonly>
+  <input id="newSpecies" type="number" min="1" max="2047" value="1328" readonly>
  </div>
  <div><label>Level</label><input id="newLevel" type="number" min="1" max="100" value="5"></div>
  <div><label>Nature</label><select id="newNature"></select></div>
@@ -293,17 +293,17 @@ const NATURES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Rel
 
 // Maps for ROM Species ID <-> PokeAPI Dex ID
 const ROM_TO_DEX = {
- 1325: 937,  // Ceruledge
- 1326: 936,  // Armarouge
- 1327: 1007, // Koraidon
- 1328: 1008  // Miraidon
+ 1325: 937, // Ceruledge
+ 1326: 936, // Armarouge
+ 1327: 941, // Kilowattrel
+ 1328: 940  // Wattrel
 };
 
 const DEX_TO_ROM = {
- 937: 1325,  // Ceruledge
- 936: 1326,  // Armarouge
- 1007: 1327, // Koraidon
- 1008: 1328  // Miraidon
+ 937: 1325, // Ceruledge
+ 936: 1326, // Armarouge
+ 941: 1327, // Kilowattrel
+ 940: 1328  // Wattrel
 };
 
 const DEX_NAMES={
@@ -313,10 +313,10 @@ const DEX_NAMES={
 257:"Blaziken",260:"Swampert",282:"Gardevoir",376:"Metagross",445:"Garchomp",
 448:"Lucario",658:"Greninja",700:"Sylveon",730:"Primarina",778:"Mimikyu",
 908:"Meowscarada",911:"Skeledirge",914:"Quaquaval",936:"Armarouge",937:"Ceruledge",
-1007:"Koraidon",1008:"Miraidon",1325:"Ceruledge",1326:"Armarouge",1327:"Koraidon",1328:"Miraidon"
+940:"Wattrel",941:"Kilowattrel",1325:"Ceruledge",1326:"Armarouge",1327:"Kilowattrel",1328:"Wattrel"
 };
 
-const SPECIES_TO_SPRITE={1325:937,1326:936,1327:1007,1328:1008,937:937,936:936,908:908,911:911,914:914};
+const SPECIES_TO_SPRITE={1325:937,1326:936,1327:941,1328:940,940:940,941:941,937:937,936:936,908:908,911:911,914:914};
 const POKEMON_API_MAX=1025;
 
 let bytes=null,original=null,filename="PKSG.srm",activeSlot=0,logical=null,current=null,dirty=false;
@@ -778,8 +778,8 @@ function ensureCustomPokemon(){
  const custom=[
   {id:1325, dexId:937, name:"ceruledge"},
   {id:1326, dexId:936, name:"armarouge"},
-  {id:1327, dexId:1007, name:"koraidon"},
-  {id:1328, dexId:1008, name:"miraidon"}
+  {id:1327, dexId:941, name:"kilowattrel"},
+  {id:1328, dexId:940, name:"wattrel"}
  ];
  for(const p of custom){
   const disp = pokemonDisplayName(p.name);
