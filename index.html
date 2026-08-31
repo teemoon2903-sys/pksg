@@ -99,7 +99,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
+ <h1>🔥 PKSG</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -420,7 +420,10 @@ function levelFromExp(exp){
  return best;
 }
 
-// PARTY-ONLY FIX: isolate Party display reading from the existing PC reader.
+// PARTY-ONLY FIX: SoulGold GBA ROM-hack uses a non-uniform Party layout.
+// These offsets are the verified Party record starts in the supplied save;
+// the species word remains at +0x20. Keep PC/readMonFrom untouched.
+const PARTY_RECORD_OFFSETS=[0x238,0x29C,0x2F8,0x358,0x3B8,0x418];
 function readPartyDisplayMon(data,off){
  const raw=data.slice(off,off+76),pid=u32(raw,0),ot=u32(raw,4);
  const w0=u16(raw,32),w1=u16(raw,34),d=u32(raw,36);
@@ -437,7 +440,7 @@ function readPartyDisplayMon(data,off){
 function getPartyData(){
  const sb=logical.slice(3968,3968*5);
  let count=sb[0x234],mons=[];
- for(let i=0;i<6;i++)mons.push(readPartyDisplayMon(sb,0x238+i*100));
+ for(let i=0;i<6;i++)mons.push(readPartyDisplayMon(sb,PARTY_RECORD_OFFSETS[i]));
  return {sb,count,mons};
 }
 
@@ -556,7 +559,7 @@ function applyGeneral(){
 
 function openEditor(where,index){
  let sb=where==="party"?saveblock1():getStorage();
- let off=where==="party"?0x238+index*100:4+(current.box*30+index)*76;
+ let off=where==="party"?PARTY_RECORD_OFFSETS[index]:4+(current.box*30+index)*76;
  let m=readMonFrom(sb,off,where==="party");
  current.edit={where,index,off,m};
  document.getElementById("eSpecies").value=m.species;
