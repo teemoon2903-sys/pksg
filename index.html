@@ -500,7 +500,7 @@ function render(){
  if(!bytes)return;
  const p=getPartyData();
  document.getElementById("partyCount").value=p.count;
- document.getElementById("money").value=readGameMoney(p.sb);
+ document.getElementById("money").value=u32(p.sb,0x490);
  const pg=document.getElementById("partyGrid");
  pg.innerHTML="";
  for(let i=0;i<6;i++){
@@ -521,23 +521,11 @@ function saveblock1(){return logical.slice(3968,3968+4*3968)}
 function writeSB1(sb){
  for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
 }
-// SoulGold uses the Emerald-style encrypted Money field:
-// SaveBlock2.encryptionKey at logical 0x0AC XORs SaveBlock1.money at 0x490.
-function getMoneyEncryptionKey(){
-  return u32(logical,0x0AC);
-}
-function readGameMoney(sb){
-  return (u32(sb,0x490)^getMoneyEncryptionKey())>>>0;
-}
-function writeGameMoney(sb,value){
-  w32(sb,0x490,((value>>>0)^getMoneyEncryptionKey())>>>0);
-}
 function applyGeneral(){
-  let sb=saveblock1();
-  sb[0x234]=+document.getElementById("partyCount").value;
-  const money=Math.max(0,Math.min(9999999,Number(document.getElementById("money").value)||0));
-  writeGameMoney(sb,money);
-  writeSB1(sb);dirty=true;render()
+ let sb=saveblock1();
+ sb[0x234]=+document.getElementById("partyCount").value;
+ w32(sb,0x490,Math.min(9999999,+document.getElementById("money").value));
+ writeSB1(sb);dirty=true;render()
 }
 
 function openEditor(where,index){
