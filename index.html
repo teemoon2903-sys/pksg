@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PKSG By Tateehack — SoulGold Save Editor</title>
+<title>PKSG Beta — SoulGold Save Editor</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f2f3f5;color:#171717;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -99,7 +99,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1>🔥 PKSG</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -420,10 +420,24 @@ function levelFromExp(exp){
  return best;
 }
 
+// PARTY-ONLY FIX: isolate Party display reading from the existing PC reader.
+function readPartyDisplayMon(data,off){
+ const raw=data.slice(off,off+76),pid=u32(raw,0),ot=u32(raw,4);
+ const w0=u16(raw,32),w1=u16(raw,34),d=u32(raw,36);
+ const species=w0&2047,tera=w0>>>11,item=w1&1023,exp=d&0xffffff;
+ const moves=[];for(let k=0;k<4;k++)moves.push(u16(raw,44+k*2)&2047);
+ const ev=[raw[56],raw[57],raw[58],raw[59],raw[60],raw[61]];
+ const ivd=u32(raw,68);
+ const iv=[ivd&31,(ivd>>>5)&31,(ivd>>>10)&31,(ivd>>>15)&31,(ivd>>>20)&31,(ivd>>>25)&31];
+ const nature=(pid%25)^((raw[18]>>>3)&31);
+ const shiny=(raw[30]&64)?1:0;
+ const level=(data[off+84]>=1&&data[off+84]<=100)?data[off+84]:Math.max(1,levelFromExp(exp));
+ return {off,pid,ot,species,tera,item,exp,moves,iv,ev,nature,shiny,level,raw};
+}
 function getPartyData(){
  const sb=logical.slice(3968,3968*5);
  let count=sb[0x234],mons=[];
- for(let i=0;i<6;i++)mons.push(readMonFrom(sb,0x238+i*100,true));
+ for(let i=0;i<6;i++)mons.push(readPartyDisplayMon(sb,0x238+i*100));
  return {sb,count,mons};
 }
 
@@ -500,7 +514,7 @@ function render(){
  if(!bytes)return;
  const p=getPartyData();
  document.getElementById("partyCount").value=p.count;
- document.getElementById("money").value=u32(p.sb,0x490);
+ document.getElementById("money").value=readGameMoney(p.sb);
  const pg=document.getElementById("partyGrid");
  pg.innerHTML="";
  for(let i=0;i<6;i++){
@@ -521,11 +535,23 @@ function saveblock1(){return logical.slice(3968,3968+4*3968)}
 function writeSB1(sb){
  for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
 }
+// SoulGold uses the Emerald-style encrypted Money field:
+// SaveBlock2.encryptionKey at logical 0x0AC XORs SaveBlock1.money at 0x490.
+function getMoneyEncryptionKey(){
+  return u32(logical,0x0AC);
+}
+function readGameMoney(sb){
+  return (u32(sb,0x490)^getMoneyEncryptionKey())>>>0;
+}
+function writeGameMoney(sb,value){
+  w32(sb,0x490,((value>>>0)^getMoneyEncryptionKey())>>>0);
+}
 function applyGeneral(){
- let sb=saveblock1();
- sb[0x234]=+document.getElementById("partyCount").value;
- w32(sb,0x490,Math.min(9999999,+document.getElementById("money").value));
- writeSB1(sb);dirty=true;render()
+  let sb=saveblock1();
+  sb[0x234]=+document.getElementById("partyCount").value;
+  const money=Math.max(0,Math.min(9999999,Number(document.getElementById("money").value)||0));
+  writeGameMoney(sb,money);
+  writeSB1(sb);dirty=true;render()
 }
 
 function openEditor(where,index){
