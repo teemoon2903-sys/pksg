@@ -88,6 +88,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 .lookup-card small{display:block;color:#777}
 .selected-lookup{display:flex;align-items:center;gap:10px;margin-top:7px;padding:7px 9px;border-radius:10px;background:#f3f3f3}
 .selected-lookup img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated}
+.editor-item-field{min-width:0}.editor-item-field .lookup-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}.editor-item-field .lookup-card img{width:48px;height:48px}
 
 .move-picker-box{border:1px solid #eee;border-radius:12px;padding:8px;background:#fafafa;margin-top:6px}
 .move-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:150px;overflow:auto;margin-top:6px}
@@ -99,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -236,7 +237,16 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
  <div><label>Level</label><input id="eLevel" type="number" min="1" max="100"></div>
  <div><label>Nature</label><select id="eNature"></select></div>
  <div><label>Ability slot</label><select id="eAbility"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></div>
- <div><label>🎒 Held Item</label><input id="eItem" type="number" min="0" max="1023" value="0"></div>
+ <div class="editor-item-field">
+   <label>🎒 Held Item</label>
+   <input id="eItem" type="hidden" value="0">
+   <div id="eItemSelected" class="selected-lookup" hidden>
+    <img id="eItemSelectedImg">
+    <div><b id="eItemSelectedName"></b><div class="small">Item ID: <span id="eItemSelectedId"></span></div></div>
+   </div>
+   <input id="eItemSearch" type="text" placeholder="🔍 ค้นหาชื่อ Item..." style="margin-top:6px">
+   <div id="eItemPicker" class="lookup-grid" style="max-height:220px;margin-top:6px"></div>
+  </div>
  <div><label>Shiny</label><select id="eShiny"><option value="0">No</option><option value="1">Yes</option></select></div>
  <div><label>Gender</label><select id="eGender"><option value="male">Male</option><option value="female">Female</option><option value="none">Genderless</option></select></div>
 </div>
@@ -568,6 +578,7 @@ function openEditor(where,index){
  document.getElementById("eNature").value=m.nature%25;
  document.getElementById("eAbility").value=0;
  document.getElementById("eItem").value=m.item;
+  setupEditorItemPicker(m.item);
  document.getElementById("eShiny").value=m.shiny;
  configureGenderSelect(m.species,genderFromPid(m.pid,m.species));
  m.iv.forEach((v,i)=>document.getElementById("iv"+i).value=v);
@@ -852,6 +863,76 @@ function renderItemPicker(){
  for(const item of list) picker.appendChild(makeItemCard(item));
 }
 
+function setEditorItemDisplay(id){
+ id=+id||0;
+ document.getElementById("eItem").value=id;
+ const selected=document.getElementById("eItemSelected");
+ const img=document.getElementById("eItemSelectedImg");
+ const nameEl=document.getElementById("eItemSelectedName");
+ const idEl=document.getElementById("eItemSelectedId");
+ if(!selected||!img||!nameEl||!idEl)return;
+ if(!id){
+  selected.hidden=false;
+  img.style.visibility="hidden";
+  nameEl.textContent="None";
+  idEl.textContent="0";
+  return;
+ }
+ const item=itemById(id);
+ if(!item){
+  selected.hidden=false;
+  img.style.visibility="hidden";
+  nameEl.textContent="Unknown Item";
+  idEl.textContent=id;
+  return;
+ }
+ selected.hidden=false;
+ img.style.visibility="visible";
+ img.onerror=function(){this.onerror=null;this.style.visibility="hidden"};
+ img.src=itemSprite(item.id);
+ nameEl.textContent=item.name;
+ idEl.textContent=item.id;
+}
+function renderEditorItemPicker(){
+ const picker=document.getElementById("eItemPicker"); if(!picker)return;
+ picker.innerHTML="";
+ const search=document.getElementById("eItemSearch");
+ const list=filterItems(search?.value||"");
+ const selectedId=+document.getElementById("eItem").value||0;
+ const none=document.createElement("div");
+ none.className="lookup-card"+(selectedId===0?" selected":"");
+ none.innerHTML="<b>None</b><small>Item ID #0</small>";
+ none.onclick=()=>{
+  setEditorItemDisplay(0);
+  renderEditorItemPicker();
+ };
+ picker.appendChild(none);
+ if(!list.length){
+  if((search?.value||"").trim()){
+   const status=document.createElement("div");
+   status.className="picker-status";
+   status.textContent="ไม่พบ Item";
+   picker.appendChild(status);
+  }
+  return;
+ }
+ for(const item of list){
+  const d=makeItemCard(item);
+  d.classList.toggle("selected",selectedId===item.id);
+  d.onclick=()=>{
+   setEditorItemDisplay(item.id);
+   renderEditorItemPicker();
+  };
+  picker.appendChild(d);
+ }
+}
+function setupEditorItemPicker(selectedId){
+ setEditorItemDisplay(selectedId);
+ const search=document.getElementById("eItemSearch");
+ if(search)search.value="";
+ renderEditorItemPicker();
+}
+
 function renderItems(){
  const sb=saveblock1(),list=document.getElementById("itemList");
  list.innerHTML="";
@@ -1101,6 +1182,8 @@ document.getElementById("clearPokemonSearch").addEventListener("click",()=>{
 document.getElementById("editorPokemonSearch").addEventListener("input",renderEditorPokemonPicker);
 
 document.getElementById("itemSearch").addEventListener("input",renderItemPicker);
+const editorItemSearch=document.getElementById("eItemSearch");
+if(editorItemSearch)editorItemSearch.addEventListener("input",renderEditorItemPicker);
 document.getElementById("clearItemSearch").addEventListener("click",()=>{
  document.getElementById("itemSearch").value="";renderItemPicker();
 });
