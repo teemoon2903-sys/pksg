@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -482,7 +482,16 @@ function spriteNameSlug(name){
   .toLowerCase();
  const aliases={
   "mr-mime":"mr-mime","mime-jr":"mime-jr","type-null":"type-null",
-  "farfetchd":"farfetchd","sirfetchd":"sirfetchd","flab-b":"flabebe"
+  "farfetchd":"farfetchd","sirfetchd":"sirfetchd","flab-b":"flabebe",
+  "mimejr":"mime-jr",
+  "tapukoko":"tapu-koko","tapulele":"tapu-lele","tapubulu":"tapu-bulu","tapufini":"tapu-fini",
+  "greattusk":"great-tusk","screamtail":"scream-tail","brutebonnet":"brute-bonnet",
+  "fluttermane":"flutter-mane","slitherwing":"slither-wing","sandyshocks":"sandy-shocks",
+  "irontreads":"iron-treads","ironbundle":"iron-bundle","ironhands":"iron-hands",
+  "ironjugulis":"iron-jugulis","ironmoth":"iron-moth","ironthorns":"iron-thorns",
+  "roaringmoon":"roaring-moon","ironvaliant":"iron-valiant",
+  "walkingwake":"walking-wake","ironleaves":"iron-leaves",
+  "gougingfire":"gouging-fire","ragingbolt":"raging-bolt","ironboulder":"iron-boulder","ironcrown":"iron-crown"
  };
  return aliases[n]||n;
 }
@@ -541,6 +550,26 @@ function sprite(id){
  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+n+".png";
 }
 
+let ROM_FORM_SPRITE_CACHE=null;
+let ROM_FORM_SPRITE_LOADING=null;
+function loadRomFormSpriteCatalog(){
+ if(ROM_FORM_SPRITE_CACHE)return Promise.resolve(ROM_FORM_SPRITE_CACHE);
+ if(ROM_FORM_SPRITE_LOADING)return ROM_FORM_SPRITE_LOADING;
+ ROM_FORM_SPRITE_LOADING=fetch("https://pokeapi.co/api/v2/pokemon-form/?limit=10000")
+  .then(r=>r.ok?r.json():null)
+  .then(d=>{
+   const map={};
+   if(d&&Array.isArray(d.results)){
+    for(const x of d.results){
+     if(x&&x.name&&x.url)map[x.name.toLowerCase()]=x.url;
+    }
+   }
+   ROM_FORM_SPRITE_CACHE=map;
+   return map;
+  })
+  .catch(()=>{ROM_FORM_SPRITE_CACHE={};return ROM_FORM_SPRITE_CACHE;});
+ return ROM_FORM_SPRITE_LOADING;
+}
 function spriteFallback(id,img){
  try{
   const n=+id;
@@ -553,18 +582,30 @@ function spriteFallback(id,img){
    if(baseSlug)candidates.push(baseSlug);
   }
   const unique=candidates.filter((v,i,a)=>v&&a.indexOf(v)===i);
-  const tryNext=(i)=>{
-   if(i>=unique.length)return;
-   fetch("https://pokeapi.co/api/v2/pokemon/"+unique[i])
-    .then(r=>r.ok?r.json():null)
-    .then(d=>{
-     const s=d&&d.sprites;
-     const u=s&&(s.other&&s.other.home&&s.other.home.front_default || s.front_default);
-     if(u&&img){img.src=u;return;}
-     tryNext(i+1);
-    }).catch(()=>tryNext(i+1));
-  };
-  tryNext(0);
+  loadRomFormSpriteCatalog().then(forms=>{
+   const tryForm=(i)=>{
+    if(i>=unique.length)return;
+    const key=String(unique[i]).toLowerCase();
+    const formUrl=forms[key];
+    if(formUrl){
+     fetch(formUrl).then(r=>r.ok?r.json():null).then(d=>{
+      const u=d&&d.sprites&&d.sprites.front_default;
+      if(u&&img){img.src=u;return;}
+      tryForm(i+1);
+     }).catch(()=>tryForm(i+1));
+     return;
+    }
+    fetch("https://pokeapi.co/api/v2/pokemon/"+key)
+     .then(r=>r.ok?r.json():null)
+     .then(d=>{
+      const s=d&&d.sprites;
+      const u=s&&(s.other&&s.other.home&&s.other.home.front_default||s.front_default);
+      if(u&&img){img.src=u;return;}
+      tryForm(i+1);
+     }).catch(()=>tryForm(i+1));
+   };
+   tryForm(0);
+  });
  }catch(e){}
 }
 
