@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -545,16 +545,26 @@ function spriteFallback(id,img){
  try{
   const n=+id;
   const rec=ROM_POKEMON_ID_MAP.find(r=>r.id===n);
-  const slug=spriteNameSlug(rec ? rec.name : "");
-  if(!slug)return;
-  // If the name-based image host has no asset, ask PokéAPI for the
-  // canonical National-Dex sprite URL. This does not change the ROM ID.
-  fetch("https://pokeapi.co/api/v2/pokemon/"+slug)
-   .then(r=>r.ok?r.json():null)
-   .then(d=>{
-    const u=d&&d.sprites&&d.sprites.other&&d.sprites.other.home&&d.sprites.other.home.front_default;
-    if(u&&img&&img.src.indexOf(u)===-1) img.src=u;
-   }).catch(()=>{});
+  const info=pokemonFormInfo(n);
+  const candidates=[];
+  if(info&&info.slug)candidates.push(info.slug);
+  if(rec&&rec.name){
+   const baseSlug=spriteNameSlug(rec.name);
+   if(baseSlug)candidates.push(baseSlug);
+  }
+  const unique=candidates.filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const tryNext=(i)=>{
+   if(i>=unique.length)return;
+   fetch("https://pokeapi.co/api/v2/pokemon/"+unique[i])
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{
+     const s=d&&d.sprites;
+     const u=s&&(s.other&&s.other.home&&s.other.home.front_default || s.front_default);
+     if(u&&img){img.src=u;return;}
+     tryNext(i+1);
+    }).catch(()=>tryNext(i+1));
+  };
+  tryNext(0);
  }catch(e){}
 }
 
