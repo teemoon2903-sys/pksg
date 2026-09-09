@@ -100,8 +100,8 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By-Tateehack</h1>
- <div class="sub">Beta SoulGold GBA Save Editor — Custom Romhack Mapping</div>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
 <div class="card">
@@ -1115,10 +1115,10 @@ function setupEditorItemPicker(selectedId){
 }
 
 function renderItems(){
- const sb=saveblock1(),list=document.getElementById("itemList");
+ const sb=saveblock1(),list=document.getElementById("itemList"),key=getMoneyEncryptionKey()&0xFFFF;
  list.innerHTML="";
  for(let i=0;i<186;i++){
-  let o=0x560+i*4,id=u16(sb,o),q=u16(sb,o+2);
+  let o=0x560+i*4,id=u16(sb,o),q=(u16(sb,o+2)^key)&0xFFFF;
   if(id||q){
    let d=document.createElement("div");
    d.className="itemrow";
@@ -1132,11 +1132,18 @@ function renderItems(){
 function setItem(){
  let sb=saveblock1(),
  i=+document.getElementById("itemSlot").value,
- o=0x560+i*4;
- w16(sb,o,+document.getElementById("itemId").value);
- w16(sb,o+2,+document.getElementById("itemQty").value);
+ o=0x560+i*4,
+ id=+document.getElementById("itemId").value,
+ qty=Math.max(0,Math.min(999,+document.getElementById("itemQty").value||0)),
+ key=getMoneyEncryptionKey()&0xFFFF;
+ if(id!==0&&!ROM_ITEM_ID_MAP.some(x=>x.id===id)){
+  document.getElementById("status").textContent=`❌ Item ID ${id} ไม่มีใน ROM นี้`;
+  return;
+ }
+ w16(sb,o,id);
+ w16(sb,o+2,(qty^key)&0xFFFF);
  writeSB1(sb);dirty=true;renderItems();
- document.getElementById("status").textContent=`Item slot ${i} updated`
+ document.getElementById("status").textContent=`Item slot ${i} updated • Item ID ${id} • จำนวน ${qty}`
 }
 
 function sectorDataSize(id){
