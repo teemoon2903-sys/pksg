@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Beta Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -1115,7 +1115,7 @@ function setupEditorItemPicker(selectedId){
 }
 
 function renderItems(){
- const sb=saveblock1(),list=document.getElementById("itemList"),key=getMoneyEncryptionKey()&0xFFFF;
+ const sb=saveblock1(),list=document.getElementById("itemList"),key=u32(logical,0x0B4)&0xFFFF;
  list.innerHTML="";
  for(let i=0;i<186;i++){
   let o=0x560+i*4,id=u16(sb,o),q=(u16(sb,o+2)^key)&0xFFFF;
@@ -1135,7 +1135,7 @@ function setItem(){
  o=0x560+i*4,
  id=+document.getElementById("itemId").value,
  qty=Math.max(0,Math.min(999,+document.getElementById("itemQty").value||0)),
- key=getMoneyEncryptionKey()&0xFFFF;
+ key=u32(logical,0x0B4)&0xFFFF;
  if(id!==0&&!ROM_ITEM_ID_MAP.some(x=>x.id===id)){
   document.getElementById("status").textContent=`❌ Item ID ${id} ไม่มีใน ROM นี้`;
   return;
