@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -493,10 +493,11 @@ function pokemonFormInfo(id){
  const base=rec.name;
  const f=rec.form||"";
  const special={
-  907:{name:"Charizard Mega X",slug:"charizard-mega-x"},
-  908:{name:"Charizard Mega Y",slug:"charizard-mega-y"},
-  919:{name:"Mewtwo Mega X",slug:"mewtwo-mega-x"},
-  920:{name:"Mewtwo Mega Y",slug:"mewtwo-mega-y"},
+  907:{name:"Charizard Mega X",slug:"charizard-mega-x",spriteId:10034},
+  908:{name:"Charizard Mega Y",slug:"charizard-mega-y",spriteId:10035},
+  919:{name:"Mewtwo Mega X",slug:"mewtwo-mega-x",spriteId:10043},
+  920:{name:"Mewtwo Mega Y",slug:"mewtwo-mega-y",spriteId:10044},
+  1491:{name:"Charizard Gigantamax",slug:"charizard-gmax",spriteId:10196},
   954:{name:"Kyogre Primal",slug:"kyogre-primal"},
   955:{name:"Groudon Primal",slug:"groudon-primal"},
   1402:{name:"Tauros Combat Breed",slug:"tauros-paldea-combat-breed"},
@@ -534,12 +535,9 @@ function sprite(id){
  const n=+id;
  const mapped = SPECIAL_SPECIES_MAPPING[n];
  if(mapped && mapped.dexId) return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+mapped.dexId+".png";
- const rec=ROM_POKEMON_ID_MAP.find(r=>r.id===n);
  const info=pokemonFormInfo(n);
- if(rec && rec.form !== "Base / standard / special slot" && info && info.slug){
-  // Form sprites are resolved by the existing onerror handler through PokéAPI.
-  return "https://pokeapi.co/api/v2/pokemon/"+info.slug;
- }
+ if(info && info.spriteId) return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+info.spriteId+".png";
+ if(info && info.slug) return "https://img.pokemondb.net/sprites/home/normal/"+info.slug+".png";
  return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+n+".png";
 }
 
@@ -547,15 +545,15 @@ function spriteFallback(id,img){
  try{
   const n=+id;
   const rec=ROM_POKEMON_ID_MAP.find(r=>r.id===n);
-  const info=pokemonFormInfo(n);
-  const slug=info&&info.slug ? info.slug : spriteNameSlug(rec ? rec.name : "");
+  const slug=spriteNameSlug(rec ? rec.name : "");
   if(!slug)return;
+  // If the name-based image host has no asset, ask PokéAPI for the
+  // canonical National-Dex sprite URL. This does not change the ROM ID.
   fetch("https://pokeapi.co/api/v2/pokemon/"+slug)
    .then(r=>r.ok?r.json():null)
    .then(d=>{
-    const s=d&&d.sprites;
-    const u=s&&s.other&&s.other.home&&s.other.home.front_default || s&&s.front_default;
-    if(u&&img) img.src=u;
+    const u=d&&d.sprites&&d.sprites.other&&d.sprites.other.home&&d.sprites.other.home.front_default;
+    if(u&&img&&img.src.indexOf(u)===-1) img.src=u;
    }).catch(()=>{});
  }catch(e){}
 }
