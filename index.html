@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -533,25 +533,26 @@ function pokemonFormInfo(id){
 function sprite(id){
  const n=+id;
  const mapped = SPECIAL_SPECIES_MAPPING[n];
- if(mapped && mapped.dexId) return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+mapped.dexId+".png";
- const info=pokemonFormInfo(n);
- if(info.slug)return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/"+info.slug+".png";
- return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+n+".png";
+ const rec = ROM_POKEMON_ID_MAP.find(r=>r.id===n);
+ const dexId = mapped&&mapped.dexId ? mapped.dexId : (rec&&rec.form === "Base / standard / special slot" ? n : null);
+ if(dexId) return "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/"+dexId+".png";
+ const base = rec ? (SPECIAL_SPECIES_MAPPING[rec.id]?.dexId || rec.id) : n;
+ return "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/"+base+".png";
 }
 
 function spriteFallback(id,img){
  try{
   const n=+id;
   const rec=ROM_POKEMON_ID_MAP.find(r=>r.id===n);
-  const slug=spriteNameSlug(rec ? rec.name : "");
+  const info=pokemonFormInfo(n);
+  const slug=info&&info.slug ? info.slug : spriteNameSlug(rec ? rec.name : "");
   if(!slug)return;
-  // If the name-based image host has no asset, ask PokéAPI for the
-  // canonical National-Dex sprite URL. This does not change the ROM ID.
   fetch("https://pokeapi.co/api/v2/pokemon/"+slug)
    .then(r=>r.ok?r.json():null)
    .then(d=>{
-    const u=d&&d.sprites&&d.sprites.other&&d.sprites.other.home&&d.sprites.other.home.front_default;
-    if(u&&img&&img.src.indexOf(u)===-1) img.src=u;
+    const s=d&&d.sprites;
+    const u=s&&s.other&&s.other.home&&s.other.home.front_default || s&&s.front_default;
+    if(u&&img) img.src=u;
    }).catch(()=>{});
  }catch(e){}
 }
