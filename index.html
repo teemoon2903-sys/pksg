@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -533,11 +533,14 @@ function pokemonFormInfo(id){
 function sprite(id){
  const n=+id;
  const mapped = SPECIAL_SPECIES_MAPPING[n];
- const rec = ROM_POKEMON_ID_MAP.find(r=>r.id===n);
- const dexId = mapped&&mapped.dexId ? mapped.dexId : (rec&&rec.form === "Base / standard / special slot" ? n : null);
- if(dexId) return "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/"+dexId+".png";
- const base = rec ? (SPECIAL_SPECIES_MAPPING[rec.id]?.dexId || rec.id) : n;
- return "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/"+base+".png";
+ if(mapped && mapped.dexId) return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+mapped.dexId+".png";
+ const rec=ROM_POKEMON_ID_MAP.find(r=>r.id===n);
+ const info=pokemonFormInfo(n);
+ if(rec && rec.form !== "Base / standard / special slot" && info && info.slug){
+  // Form sprites are resolved by the existing onerror handler through PokéAPI.
+  return "https://pokeapi.co/api/v2/pokemon/"+info.slug;
+ }
+ return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+n+".png";
 }
 
 function spriteFallback(id,img){
