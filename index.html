@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -555,13 +555,15 @@ let ROM_FORM_SPRITE_LOADING=null;
 function loadRomFormSpriteCatalog(){
  if(ROM_FORM_SPRITE_CACHE)return Promise.resolve(ROM_FORM_SPRITE_CACHE);
  if(ROM_FORM_SPRITE_LOADING)return ROM_FORM_SPRITE_LOADING;
- ROM_FORM_SPRITE_LOADING=fetch("https://pokeapi.co/api/v2/pokemon-form/?limit=10000")
+ ROM_FORM_SPRITE_LOADING=fetch("https://pokeapi.co/api/v2/pokemon-form/?limit=100000")
   .then(r=>r.ok?r.json():null)
   .then(d=>{
    const map={};
    if(d&&Array.isArray(d.results)){
     for(const x of d.results){
-     if(x&&x.name&&x.url)map[x.name.toLowerCase()]=x.url;
+     if(!x||!x.name||!x.url)continue;
+     const m=String(x.url).match(/\/pokemon-form\/(\d+)\/?$/);
+     if(m)map[x.name.toLowerCase()]=+m[1];
     }
    }
    ROM_FORM_SPRITE_CACHE=map;
@@ -582,26 +584,37 @@ function spriteFallback(id,img){
    if(baseSlug)candidates.push(baseSlug);
   }
   const unique=candidates.filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const setSprite=u=>{
+   if(u&&img&&img.src!==u){img.src=u;return true;}
+   return false;
+  };
   loadRomFormSpriteCatalog().then(forms=>{
    const tryForm=(i)=>{
     if(i>=unique.length)return;
     const key=String(unique[i]).toLowerCase();
-    const formUrl=forms[key];
-    if(formUrl){
-     fetch(formUrl).then(r=>r.ok?r.json():null).then(d=>{
-      const u=d&&d.sprites&&d.sprites.front_default;
-      if(u&&img){img.src=u;return;}
-      tryForm(i+1);
-     }).catch(()=>tryForm(i+1));
+    const formId=forms[key];
+    if(formId){
+     const raw="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+formId+".png";
+     const probe=new Image();
+     probe.onload=()=>setSprite(raw);
+     probe.onerror=()=>fetch("https://pokeapi.co/api/v2/pokemon-form/"+formId)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+       const u=d&&d.sprites&&d.sprites.front_default;
+       if(!setSprite(u))tryForm(i+1);
+      }).catch(()=>tryForm(i+1));
+     probe.src=raw;
      return;
     }
-    fetch("https://pokeapi.co/api/v2/pokemon/"+key)
+    fetch("https://pokeapi.co/api/v2/pokemon-form/"+key)
      .then(r=>r.ok?r.json():null)
      .then(d=>{
-      const s=d&&d.sprites;
-      const u=s&&(s.other&&s.other.home&&s.other.home.front_default||s.front_default);
-      if(u&&img){img.src=u;return;}
-      tryForm(i+1);
+      const u=d&&d.sprites&&d.sprites.front_default;
+      if(!setSprite(u)){
+       const pid=d&&d.pokemon&&d.pokemon.url&&String(d.pokemon.url).match(/\/pokemon\/(\d+)\/?$/);
+       if(pid) setSprite("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"+pid[1]+".png");
+       else tryForm(i+1);
+      }
      }).catch(()=>tryForm(i+1));
    };
    tryForm(0);
