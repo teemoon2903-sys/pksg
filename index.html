@@ -100,8 +100,8 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSGBeta Tateehack</h1>
- <div class="sub">Save Editor — Custom SoulgoldRomhack Mapping</div>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
+ <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
 <div class="card">
@@ -730,16 +730,16 @@ function saveblock1(){return logical.slice(3968,3968+4*3968)}
 function writeSB1(sb){
  for(let i=0;i<4;i++)logical.set(sb.slice(i*3968,(i+1)*3968),3968+i*3968)
 }
-// SoulGold uses the Emerald-style encrypted Money field:
-// SaveBlock2.encryptionKey at logical 0x0AC XORs SaveBlock1.money at 0x490.
+// SoulGold Money field for this ROM/save layout:
+// SaveBlock2.encryptionKey at logical 0x0B4 XORs Money at logical 0x13F8.
 function getMoneyEncryptionKey(){
-  return u32(logical,0x0AC);
+  return u32(logical,0x0B4);
 }
 function readGameMoney(sb){
-  return (u32(sb,0x490)^getMoneyEncryptionKey())>>>0;
+  return (u32(logical,0x13F8)^getMoneyEncryptionKey())>>>0;
 }
 function writeGameMoney(sb,value){
-  w32(sb,0x490,((value>>>0)^getMoneyEncryptionKey())>>>0);
+  w32(logical,0x13F8,((value>>>0)^getMoneyEncryptionKey())>>>0);
 }
 function applyGeneral(){
   let sb=saveblock1();
