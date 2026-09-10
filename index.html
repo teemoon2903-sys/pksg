@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG Beta Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSGbeta By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -880,12 +880,12 @@ function patchBox(raw,vals){
   let o=44+k*2;w16(out,o,w16v(u16(out,o),0,11,+vals.moves[k]))
  }
  vals.ev.forEach((v,i)=>out[56+i]=Math.max(0,Math.min(255,+v)));
- let ivd=u32(raw,68);
+ let ivd=u32(out,68);
  for(let i=0;i<6;i++){
   let sh=i*5;
   ivd=(ivd&~(31<<sh))|((Math.max(0,Math.min(31,+vals.iv[i])))<<sh)
  }
- w32(raw,68,ivd);
+ w32(out,68,ivd);
  return out;
 }
 
