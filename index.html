@@ -100,7 +100,7 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSGBeta Tateehack</h1>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
  <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
 </div>
 
@@ -736,10 +736,10 @@ function getMoneyEncryptionKey(){
   return u32(logical,0x0B4);
 }
 function readGameMoney(sb){
-  return (u32(sb,0x13F8)^getMoneyEncryptionKey())>>>0;
+  return (u32(sb,0x478)^getMoneyEncryptionKey())>>>0;
 }
 function writeGameMoney(sb,value){
-  w32(sb,0x13F8,((value>>>0)^getMoneyEncryptionKey())>>>0);
+  w32(sb,0x478,((value>>>0)^getMoneyEncryptionKey())>>>0);
 }
 function applyGeneral(){
   let sb=saveblock1();
