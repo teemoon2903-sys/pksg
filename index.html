@@ -100,8 +100,8 @@ button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:poin
 <body>
 <div class="wrap">
 <div class="head">
- <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSG By Tateehack</h1>
- <div class="sub">SoulGold GBA Save Editor — Custom Romhack Mapping</div>
+ <h1><img src="logo.png" alt="logo" style="height: 35px; vertical-align: middle; margin-right: 8px;"> PKSGBeta Tateehack</h1>
+ <div class="sub">Save Editor — Custom SoulgoldRomhack Mapping</div>
 </div>
 
 <div class="card">
@@ -1232,7 +1232,14 @@ function exportSave(){
    return;
   }
   const built=rebuildSave();
-  dl(built.out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
+  if(mgbaFormat&&mgbaExtra){
+    const mgbaOut=new Uint8Array(built.out.length+mgbaExtra.length);
+    mgbaOut.set(built.out,0);
+    mgbaOut.set(mgbaExtra,built.out.length);
+    dl(mgbaOut,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.sav");
+   }else{
+    dl(built.out,filename.replace(/\.(sav|srm|dat)$/i,"")+"_PKSG.srm");
+   }
   document.getElementById("status").textContent=`✅ Export สำเร็จ • เขียน Save Slot ${(built.targetBase/14)+1}`;
  }catch(e){document.getElementById("status").textContent="❌ Export ถูกยกเลิก: "+e.message}
 }
@@ -1377,28 +1384,49 @@ document.getElementById("clearItemSearch").addEventListener("click",()=>{
 });
 renderItemPicker();
 
+let mgbaFormat=false,mgbaExtra=null;
+
 document.getElementById("file").onchange=async e=>{
  const f=e.target.files[0];
  if(!f)return;
  filename=f.name;
- bytes=new Uint8Array(await f.arrayBuffer());
- original=bytes.slice();
+ const loadedBytes=new Uint8Array(await f.arrayBuffer());
 
- if(bytes.length!==131072){
-  document.getElementById("status").textContent="ไฟล์นี้ไม่ใช่ 128 KiB save ที่ PKSG รุ่นนี้รองรับ";
+ if(loadedBytes.length===131072){
+  bytes=loadedBytes;
+  original=bytes.slice();
+  try{
+   current=parseSlots();
+   logical=buildLogical(current);
+   dirty=false;
+   activeSlot=current.base===0?0:1;
+   document.getElementById("fileInfo").textContent=`${filename} • 128 KiB • latest counter ${current.counter}`;
+   render()
+  }catch(err){
+   document.getElementById("status").textContent="อ่านเซฟไม่สำเร็จ: "+err.message
+  }
   return
  }
 
- try{
-  current=parseSlots();
-  logical=buildLogical(current);
-  dirty=false;
-  activeSlot=current.base===0?0:1;
-  document.getElementById("fileInfo").textContent=`${filename} • 128 KiB • latest counter ${current.counter}`;
-  render()
- }catch(err){
-  document.getElementById("status").textContent="อ่านเซฟไม่สำเร็จ: "+err.message
+ if(loadedBytes.length===131088){
+  bytes=loadedBytes.slice(0,131072);
+  original=bytes.slice();
+  mgbaExtra=loadedBytes.slice(131072);
+  mgbaFormat=true;
+  try{
+   current=parseSlots();
+   logical=buildLogical(current);
+   dirty=false;
+   activeSlot=current.base===0?0:1;
+   document.getElementById("fileInfo").textContent=`${filename} • mGBA 128 KiB + 16 bytes • latest counter ${current.counter}`;
+   render()
+  }catch(err){
+   document.getElementById("status").textContent="อ่านเซฟ mGBA ไม่สำเร็จ: "+err.message
+  }
+  return
  }
+
+ document.getElementById("status").textContent="ไฟล์นี้ไม่ใช่ 128 KiB หรือ mGBA 128 KiB + 16 bytes save ที่ PKSG รุ่นนี้รองรับ";
 };
 
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
